@@ -8,8 +8,6 @@ import {
   StyleProp,
   ViewStyle,
   TextInputProps,
-  NativeSyntheticEvent,
-  TextInputFocusEventData,
 } from 'react-native';
 import theme from '../../theme';
 
@@ -22,7 +20,7 @@ export interface AppInputProps extends Omit<TextInputProps, 'style'> {
   containerStyle?: StyleProp<ViewStyle>;
 }
 
-const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
+const AppInput = forwardRef<TextInput, AppInputProps>(function (
   {
     label,
     errorMessage,
@@ -44,7 +42,7 @@ const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
   const hasError = Boolean(errorMessage);
 
   const handleFocus = useCallback(
-    (event: NativeSyntheticEvent<TextInputFocusEventData>) => {
+    (event: Parameters<NonNullable<TextInputProps['onFocus']>>[0]) => {
       setIsFocused(true);
       onFocus?.(event);
     },
@@ -52,7 +50,7 @@ const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
   );
 
   const handleBlur = useCallback(
-    (event: NativeSyntheticEvent<TextInputFocusEventData>) => {
+    (event: Parameters<NonNullable<TextInputProps['onBlur']>>[0]) => {
       setIsFocused(false);
       onBlur?.(event);
     },

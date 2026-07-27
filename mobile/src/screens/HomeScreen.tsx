@@ -1,26 +1,12 @@
-import React, { useCallback, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-  withSpring,
-  Easing,
-} from 'react-native-reanimated';
-
-const COLORS = {
-  background: '#050505',
-  surface: '#0D0F0E',
-  border: '#163A32',
-  accent: '#00FFB2',
-  textPrimary: '#E6FFF6',
-  textSecondary: '#7C9992',
-  danger: '#FF5C5C',
-};
+import Screen from '../components/Screen/Screen';
+import Header from '../components/Header/Header';
+import AppCard from '../components/Card/AppCard';
+import AppButton from '../components/Button/AppButton';
+import { theme } from '../theme';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -31,263 +17,397 @@ interface HomeScreenProps {
   navigation: HomeScreenNavigationProp;
 }
 
-interface FeatureCardConfig {
+interface QuickActionConfig {
   key: string;
-  title: string;
+  label: string;
   description: string;
-  badge: string;
 }
 
-const FEATURE_CARDS: FeatureCardConfig[] = [
+interface NearbyIssueConfig {
+  key: string;
+  title: string;
+  distance: string;
+  status: string;
+}
+
+interface TrendingIssueConfig {
+  key: string;
+  title: string;
+  votes: string;
+  category: string;
+}
+
+interface HeritageSpotlightConfig {
+  key: string;
+  title: string;
+  location: string;
+}
+
+const QUICK_ACTIONS: QuickActionConfig[] = [
   {
-    key: 'ai-assistant',
-    title: 'AI Assistant',
-    description: 'Chat with your intelligent security analyst.',
-    badge: 'AI',
+    key: 'report-issue',
+    label: 'Report Issue',
+    description: 'Flag a problem in your area',
   },
   {
-    key: 'url-scanner',
-    title: 'URL Scanner',
-    description: 'Detect phishing and malicious links instantly.',
-    badge: 'SCAN',
+    key: 'explore-map',
+    label: 'Explore Map',
+    description: 'View live activity nearby',
   },
   {
-    key: 'file-scanner',
-    title: 'File Scanner',
-    description: 'Analyze files for malware and vulnerabilities.',
-    badge: 'SCAN',
+    key: 'community',
+    label: 'Community',
+    description: 'Connect with local members',
   },
   {
-    key: 'threat-feed',
-    title: 'Threat Feed',
-    description: 'Live global cybersecurity threat intelligence.',
-    badge: 'LIVE',
+    key: 'heritage',
+    label: 'Heritage',
+    description: 'Discover local landmarks',
   },
 ];
 
-interface FeatureCardProps {
-  config: FeatureCardConfig;
-  index: number;
-}
+const NEARBY_ISSUES: NearbyIssueConfig[] = [
+  {
+    key: 'nearby-1',
+    title: 'Streetlight outage on 5th Ave',
+    distance: '0.4 km away',
+    status: 'Pending',
+  },
+  {
+    key: 'nearby-2',
+    title: 'Pothole near Central Park entrance',
+    distance: '0.8 km away',
+    status: 'In Progress',
+  },
+  {
+    key: 'nearby-3',
+    title: 'Overflowing bin at Market Square',
+    distance: '1.2 km away',
+    status: 'Pending',
+  },
+];
 
-function FeatureCard({ config, index }: FeatureCardProps) {
-  const cardOpacity = useSharedValue(0);
-  const cardTranslateY = useSharedValue(20);
-  const cardScale = useSharedValue(1);
+const TRENDING_ISSUES: TrendingIssueConfig[] = [
+  {
+    key: 'trending-1',
+    title: 'Water supply disruption downtown',
+    votes: '482 votes',
+    category: 'Utilities',
+  },
+  {
+    key: 'trending-2',
+    title: 'Illegal dumping near riverbank',
+    votes: '311 votes',
+    category: 'Environment',
+  },
+  {
+    key: 'trending-3',
+    title: 'Traffic signal malfunction',
+    votes: '204 votes',
+    category: 'Infrastructure',
+  },
+];
 
-  useEffect(() => {
-    cardOpacity.value = withDelay(
-      120 * index,
-      withTiming(1, { duration: 500, easing: Easing.out(Easing.exp) }),
-    );
-    cardTranslateY.value = withDelay(
-      120 * index,
-      withTiming(0, { duration: 500, easing: Easing.out(Easing.exp) }),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
-
-  const cardAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [
-      { translateY: cardTranslateY.value },
-      { scale: cardScale.value },
-    ],
-  }));
-
-  const handlePressIn = useCallback(() => {
-    cardScale.value = withTiming(0.97, { duration: 100 });
-  }, [cardScale]);
-
-  const handlePressOut = useCallback(() => {
-    cardScale.value = withSpring(1, { damping: 14, stiffness: 200 });
-  }, [cardScale]);
-
-  return (
-    <Animated.View style={[styles.cardWrapper, cardAnimatedStyle]}>
-      <Pressable
-        style={styles.card}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{config.title}</Text>
-          <View style={styles.cardBadge}>
-            <Text style={styles.cardBadgeText}>{config.badge}</Text>
-          </View>
-        </View>
-        <Text style={styles.cardDescription}>{config.description}</Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
+const HERITAGE_SPOTLIGHT: HeritageSpotlightConfig = {
+  key: 'heritage-spotlight-1',
+  title: 'The Old Clock Tower',
+  location: 'Founded 1887 · City Center',
+};
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
-  const insets = useSafeAreaInsets();
+  const handleQuickActionPress = useCallback((_key: string) => {
+    // Static UI only — no backend wiring in this sprint.
+  }, []);
 
-  const bannerOpacity = useSharedValue(0);
-  const bannerTranslateY = useSharedValue(-16);
-  const logoutButtonScale = useSharedValue(1);
+  const handleViewAllNearbyPress = useCallback(() => {
+    // Static UI only — no backend wiring in this sprint.
+  }, []);
 
-  useEffect(() => {
-    bannerOpacity.value = withTiming(1, {
-      duration: 600,
-      easing: Easing.out(Easing.exp),
-    });
-    bannerTranslateY.value = withTiming(0, {
-      duration: 600,
-      easing: Easing.out(Easing.exp),
-    });
-  }, [bannerOpacity, bannerTranslateY]);
+  const handleViewAllTrendingPress = useCallback(() => {
+    // Static UI only — no backend wiring in this sprint.
+  }, []);
 
-  const bannerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: bannerOpacity.value,
-    transform: [{ translateY: bannerTranslateY.value }],
-  }));
-
-  const logoutButtonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: logoutButtonScale.value }],
-  }));
-
-  const handleLogoutPressIn = useCallback(() => {
-    logoutButtonScale.value = withTiming(0.96, { duration: 100 });
-  }, [logoutButtonScale]);
-
-  const handleLogoutPressOut = useCallback(() => {
-    logoutButtonScale.value = withSpring(1, { damping: 12, stiffness: 180 });
-  }, [logoutButtonScale]);
+  const handleHeritageSpotlightPress = useCallback(() => {
+    // Static UI only — no backend wiring in this sprint.
+  }, []);
 
   const handleLogoutPress = useCallback(() => {
     navigation.navigate('Login');
   }, [navigation]);
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View style={[styles.banner, bannerAnimatedStyle]}>
-          <Text style={styles.bannerEyebrow}>SERPENTIS</Text>
-          <Text style={styles.bannerTitle}>Welcome back, operator.</Text>
-          <Text style={styles.bannerSubtitle}>
-            Your systems are being monitored in real time.
-          </Text>
-        </Animated.View>
+    <Screen scrollable keyboardAvoiding={false}>
+      <Header
+        title="SERPENTIS"
+        subtitle="Welcome back, operator."
+        rightAction={
+          <Pressable onPress={handleLogoutPress} hitSlop={8}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </Pressable>
+        }
+      />
 
-        <View style={styles.cardsGrid}>
-          {FEATURE_CARDS.map((config, index) => (
-            <FeatureCard key={config.key} config={config} index={index} />
+      <View style={styles.section}>
+        <AppCard elevation="md">
+          <View style={styles.trustScoreHeader}>
+            <Text style={styles.trustScoreLabel}>Trust Score</Text>
+            <View style={styles.trustScoreBadge}>
+              <Text style={styles.trustScoreBadgeText}>VERIFIED</Text>
+            </View>
+          </View>
+          <Text style={styles.trustScoreValue}>87</Text>
+          <Text style={styles.trustScoreDescription}>
+            Based on your contributions and community trust ratings.
+          </Text>
+        </AppCard>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.quickActionsGrid}>
+          {QUICK_ACTIONS.map((action) => (
+            <View key={action.key} style={styles.quickActionItem}>
+              <AppCard
+                elevation="sm"
+                onPress={() => handleQuickActionPress(action.key)}
+                style={styles.quickActionCard}
+              >
+                <Text style={styles.quickActionLabel}>{action.label}</Text>
+                <Text style={styles.quickActionDescription} numberOfLines={2}>
+                  {action.description}
+                </Text>
+              </AppCard>
+            </View>
           ))}
         </View>
+      </View>
 
-        <Animated.View style={logoutButtonAnimatedStyle}>
-          <Pressable
-            style={styles.logoutButton}
-            onPress={handleLogoutPress}
-            onPressIn={handleLogoutPressIn}
-            onPressOut={handleLogoutPressOut}
-          >
-            <Text style={styles.logoutButtonText}>Logout</Text>
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Nearby Issues</Text>
+          <Pressable onPress={handleViewAllNearbyPress} hitSlop={8}>
+            <Text style={styles.viewAllText}>View All</Text>
           </Pressable>
-        </Animated.View>
-      </ScrollView>
-    </View>
+        </View>
+
+        {NEARBY_ISSUES.map((issue) => (
+          <AppCard key={issue.key} elevation="sm" style={styles.listCard}>
+            <View style={styles.listCardHeader}>
+              <Text style={styles.listCardTitle} numberOfLines={1}>
+                {issue.title}
+              </Text>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>{issue.status}</Text>
+              </View>
+            </View>
+            <Text style={styles.listCardMeta}>{issue.distance}</Text>
+          </AppCard>
+        ))}
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Trending Issues</Text>
+          <Pressable onPress={handleViewAllTrendingPress} hitSlop={8}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </Pressable>
+        </View>
+
+        {TRENDING_ISSUES.map((issue) => (
+          <AppCard key={issue.key} elevation="sm" style={styles.listCard}>
+            <View style={styles.listCardHeader}>
+              <Text style={styles.listCardTitle} numberOfLines={1}>
+                {issue.title}
+              </Text>
+              <Text style={styles.votesText}>{issue.votes}</Text>
+            </View>
+            <Text style={styles.listCardMeta}>{issue.category}</Text>
+          </AppCard>
+        ))}
+      </View>
+
+      <View style={[styles.section, styles.lastSection]}>
+        <Text style={styles.sectionTitle}>Heritage Spotlight</Text>
+        <AppCard
+          elevation="md"
+          onPress={handleHeritageSpotlightPress}
+          style={styles.heritageCard}
+        >
+          <View style={styles.heritageBadge}>
+            <Text style={styles.heritageBadgeText}>FEATURED</Text>
+          </View>
+          <Text style={styles.heritageTitle}>{HERITAGE_SPOTLIGHT.title}</Text>
+          <Text style={styles.heritageLocation}>
+            {HERITAGE_SPOTLIGHT.location}
+          </Text>
+          <AppButton
+            label="Explore Heritage Site"
+            onPress={handleHeritageSpotlightPress}
+            variant="outline"
+            style={styles.heritageButton}
+          />
+        </AppCard>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: COLORS.background,
+  logoutText: {
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.danger,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 40,
+  section: {
+    marginTop: theme.spacing.xl,
   },
-  banner: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 22,
-    marginBottom: 24,
+  lastSection: {
+    marginBottom: theme.spacing.xl,
   },
-  bannerEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 3,
-    color: COLORS.accent,
-    marginBottom: 10,
+  sectionTitle: {
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.md,
   },
-  bannerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginBottom: 6,
-  },
-  bannerSubtitle: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 18,
-  },
-  cardsGrid: {
-    marginBottom: 28,
-  },
-  cardWrapper: {
-    marginBottom: 14,
-  },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-  },
-  cardHeader: {
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: theme.spacing.md,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
+  viewAllText: {
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.accent,
   },
-  cardBadge: {
+  trustScoreHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.sm,
+  },
+  trustScoreLabel: {
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.semibold,
+    letterSpacing: 1,
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  trustScoreBadge: {
     borderWidth: 1,
-    borderColor: COLORS.accent,
-    borderRadius: 20,
-    paddingHorizontal: 10,
+    borderColor: theme.colors.accent,
+    borderRadius: theme.radius.round,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: 3,
   },
-  cardBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+  trustScoreBadgeText: {
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.bold,
     letterSpacing: 1,
-    color: COLORS.accent,
+    color: theme.colors.accent,
   },
-  cardDescription: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
+  trustScoreValue: {
+    fontSize: 40,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.accent,
+    marginBottom: theme.spacing.xs,
+  },
+  trustScoreDescription: {
+    fontSize: theme.typography.fontSizes.sm,
+    color: theme.colors.textSecondary,
     lineHeight: 18,
   },
-  logoutButton: {
-    borderWidth: 1,
-    borderColor: COLORS.danger,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -theme.spacing.xs,
   },
-  logoutButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
+  quickActionItem: {
+    width: '50%',
+    paddingHorizontal: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+  },
+  quickActionCard: {
+    minHeight: 96,
+  },
+  quickActionLabel: {
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.xs,
+  },
+  quickActionDescription: {
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
+    lineHeight: 16,
+  },
+  listCard: {
+    marginBottom: theme.spacing.sm,
+  },
+  listCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.xs,
+  },
+  listCardTitle: {
+    flex: 1,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.textPrimary,
+    marginRight: theme.spacing.sm,
+  },
+  listCardMeta: {
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
+  },
+  statusBadge: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.round,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+  },
+  statusBadgeText: {
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.textSecondary,
+  },
+  votesText: {
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.accent,
+  },
+  heritageCard: {
+    alignItems: 'flex-start',
+  },
+  heritageBadge: {
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    borderRadius: theme.radius.round,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 3,
+    marginBottom: theme.spacing.sm,
+  },
+  heritageBadgeText: {
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.bold,
     letterSpacing: 1,
-    color: COLORS.danger,
+    color: theme.colors.accent,
+  },
+  heritageTitle: {
+    fontSize: theme.typography.fontSizes.lg,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.xs,
+  },
+  heritageLocation: {
+    fontSize: theme.typography.fontSizes.sm,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.md,
+  },
+  heritageButton: {
+    marginTop: theme.spacing.xs,
   },
 });

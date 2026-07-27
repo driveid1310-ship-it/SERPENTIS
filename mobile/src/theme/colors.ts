@@ -15,10 +15,12 @@ const Colors = {
   textPrimary: '#F8FAFC',
   textSecondary: '#94A3B8',
   textMuted: '#64748B',
+  placeholder: '#94A3B8',
 
   success: '#22C55E',
   warning: '#F59E0B',
   error: '#EF4444',
+  danger: '#EF4444',
   info: '#3B82F6',
 
   white: '#FFFFFF',

@@ -13,6 +13,21 @@ const Typography = {
   caption: 12,
 
   tiny: 10,
-};
+
+  fontSizes: {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 20,
+  },
+
+  fontWeights: {
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  },
+} as const;
 
 export default Typography;
