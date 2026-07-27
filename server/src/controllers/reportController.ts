@@ -649,3 +649,139 @@ export async function getNearbyReports(
     next(error);
   }
 }
+
+export async function upvoteReport(
+  req: AuthenticatedRequest & { params: { id: string } },
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    try {
+  if (!req.userId) {
+    res.status(401).json({
+      success: false,
+      message: 'Not authenticated.',
+    });
+    return;
+  }
+
+  const { id } = req.params;
+
+  if (!isValidObjectId(id)) {
+    res.status(400).json({
+      success: false,
+      message: 'Invalid report ID.',
+    });
+    return;
+  }
+
+  const report = await Report.findById(id);
+
+  if (!report) {
+    res.status(404).json({
+      success: false,
+      message: 'Report not found.',
+    });
+    return;
+  }
+
+  const alreadyUpvoted = report.upvotes.some(
+    (userId) => userId.toString() === req.userId,
+  );
+
+  if (alreadyUpvoted) {
+    res.status(400).json({
+      success: false,
+      message: 'You have already upvoted this report.',
+    });
+    return;
+  }
+
+  report.upvotes.push(new Types.ObjectId(req.userId));
+  await report.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Report upvoted successfully.',
+    data: {
+      upvotes: report.upvotes.length,
+    },
+  });
+} catch (error) {
+  next(error);
+}
+    
+
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function removeUpvote(
+  req: AuthenticatedRequest & { params: { id: string } },
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    try {
+  if (!req.userId) {
+    res.status(401).json({
+      success: false,
+      message: 'Not authenticated.',
+    });
+    return;
+  }
+
+  const { id } = req.params;
+
+  if (!isValidObjectId(id)) {
+    res.status(400).json({
+      success: false,
+      message: 'Invalid report ID.',
+    });
+    return;
+  }
+
+  const report = await Report.findById(id);
+
+  if (!report) {
+    res.status(404).json({
+      success: false,
+      message: 'Report not found.',
+    });
+    return;
+  }
+
+  const alreadyUpvoted = report.upvotes.some(
+    (userId) => userId.toString() === req.userId,
+  );
+
+  if (!alreadyUpvoted) {
+    res.status(400).json({
+      success: false,
+      message: 'You have not upvoted this report.',
+    });
+    return;
+  }
+
+  report.upvotes = report.upvotes.filter(
+    (userId) => userId.toString() !== req.userId,
+  );
+
+  await report.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Upvote removed successfully.',
+    data: {
+      upvotes: report.upvotes.length,
+    },
+  });
+} catch (error) {
+  next(error);
+}
+
+  } catch (error) {
+    next(error);
+  }
+}
