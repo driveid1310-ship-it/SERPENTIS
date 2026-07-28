@@ -188,17 +188,27 @@ export async function createReport(
       });
       return;
     }
+    const existingDuplicate = await Report.findOne({
+  category,
+  isDuplicate: false,
+  location: {
+    $near: {
+      $geometry: location,
+      $maxDistance: 50,
+    },
+  },
+});
 
-    const newReport = await Report.create({
-      title: title.trim(),
-      description: description.trim(),
-      category,
-      images: images ?? [],
-      location,
-      reportedBy: req.userId,
-      priority: priority ?? 'low',
-    });
-
+const newReport = await Report.create({
+  title: title.trim(),
+  description: description.trim(),
+  category,
+  images: images ?? [],
+  location,
+  reportedBy: req.userId,
+  priority: priority ?? 'low',
+  isDuplicate: !!existingDuplicate,
+  });
     const populatedReport = await newReport.populate('reportedBy', 'name email');
 
     res.status(201).json({
