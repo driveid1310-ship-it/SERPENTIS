@@ -46,7 +46,6 @@ interface GetAllReportsQuery {
   near?: string;
   maxDistance?: string;
 }
-
 const VALID_CATEGORIES: ReportCategory[] = [
   'pothole',
   'garbage',
@@ -65,7 +64,11 @@ const VALID_STATUSES: ReportStatus[] = [
   'rejected',
 ];
 
-const VALID_PRIORITIES: ReportPriority[] = ['low', 'medium', 'high'];
+const VALID_PRIORITIES: ReportPriority[] = [
+  'low',
+  'medium',
+  'high',
+];
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -732,7 +735,6 @@ export async function removeUpvote(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  try {
     try {
   if (!req.userId) {
     res.status(401).json({
@@ -787,10 +789,122 @@ export async function removeUpvote(
       upvotes: report.upvotes.length,
     },
   });
-} catch (error) {
-  next(error);
+  } catch (error) {
+    next(error);
+  }
 }
 
+
+export async function updateReportStatus(
+  req: AuthenticatedRequest & { params: { id: string } },
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!isValidObjectId(id)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid report ID.',
+      });
+      return;
+    }
+
+    if (!status || !VALID_STATUSES.includes(status as ReportStatus)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid report status.',
+      });
+      return;
+    }
+
+    const report = await Report.findById(id);
+
+    if (!report) {
+      res.status(404).json({
+        success: false,
+        message: 'Report not found.',
+      });
+      return;
+    }
+
+    report.status = status as ReportStatus;
+
+    await report.save();
+
+    const populatedReport = await report.populate(
+      'reportedBy',
+      'name email',
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Report status updated successfully.',
+      data: {
+        report: populatedReport,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateReportPriority(
+  req: AuthenticatedRequest & { params: { id: string } },
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { priority } = req.body;
+
+    if (!isValidObjectId(id)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid report ID.',
+      });
+      return;
+    }
+
+    if (
+      !priority ||
+      !VALID_PRIORITIES.includes(priority as ReportPriority)
+    ) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid report priority.',
+      });
+      return;
+    }
+
+    const report = await Report.findById(id);
+
+    if (!report) {
+      res.status(404).json({
+        success: false,
+        message: 'Report not found.',
+      });
+      return;
+    }
+
+    report.priority = priority as ReportPriority;
+
+    await report.save();
+
+    const populatedReport = await report.populate(
+      'reportedBy',
+      'name email',
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Report priority updated successfully.',
+      data: {
+        report: populatedReport,
+      },
+    });
   } catch (error) {
     next(error);
   }
