@@ -52,3 +52,89 @@ res.status(200).json({
     next(error);
   }
 }
+
+// =======================================================
+// GET ALL USERS
+// =======================================================
+
+export async function getAllUsers(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const users = await User.find()
+      .select("-password")
+      .sort({
+        createdAt: -1,
+      });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        users,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// =======================================================
+// GET ALL REPORTS
+// =======================================================
+
+export async function getAllReports(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const reports = await Report.find()
+      .populate("reportedBy", "fullName email")
+      .sort({
+        createdAt: -1,
+      });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        reports,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// =======================================================
+// DELETE REPORT
+// =======================================================
+
+export async function deleteReport(
+  req: Request<{ id: string }>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const report = await Report.findById(req.params.id);
+
+    if (!report) {
+      res.status(404).json({
+        success: false,
+        message: "Report not found.",
+      });
+      return;
+    }
+
+    await report.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Report deleted successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+

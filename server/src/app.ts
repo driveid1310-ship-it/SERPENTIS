@@ -9,6 +9,7 @@ import sosRoutes from './routes/sosRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import notificationRoutes from "./routes/notificationRoutes.js";
 import placeRoutes from "./routes/placeRoutes.js";
+import publicServiceRoutes from "./routes/publicServiceRoutes.js";
 const app = express();
 
 
@@ -23,6 +24,7 @@ app.use('/api/sos', sosRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/places', placeRoutes);
+app.use("/api/public-services", publicServiceRoutes);
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     success: true,
