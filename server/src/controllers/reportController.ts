@@ -1,12 +1,14 @@
 import type { Request, Response, NextFunction } from "express";
 import { Types } from "mongoose";
-
+import { updateUserBadges } from '../utils/badgeUtils.js';
 import Report from "../models/Report.js";
 import type {
   ReportCategory,
   ReportStatus,
   ReportPriority,
 } from "../models/Report.js";
+import User from "../models/User.js";
+import Notification from "../models/Notification.js";
 
 interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -24,6 +26,7 @@ interface CreateReportRequestBody {
   images?: string[];
   location?: GeoJSONPointInput;
   priority?: ReportPriority;
+  isAnonymous?: boolean;
 }
 
 interface UpdateReportRequestBody {
@@ -45,6 +48,7 @@ interface GetAllReportsQuery {
   limit?: string;
   near?: string;
   maxDistance?: string;
+  sort?: string;
 }
 const VALID_CATEGORIES: ReportCategory[] = [
   'pothole',
@@ -135,7 +139,7 @@ export async function createReport(
       return;
     }
 
-    const { title, description, category, images, location, priority } =
+    const { title, description, category, images, location, priority, isAnonymous } =
       req.body;
 
     if (!title || typeof title !== 'string' || title.trim().length < 3) {
@@ -201,7 +205,6 @@ export async function createReport(
     },
   },
 });
-
 const newReport = await Report.create({
   title: title.trim(),
   description: description.trim(),
@@ -211,28 +214,44 @@ const newReport = await Report.create({
   reportedBy: req.userId,
   priority: priority ?? 'low',
   isDuplicate: !!existingDuplicate,
-  });
-    const populatedReport = await newReport.populate('reportedBy', 'name email');
+  isAnonymous: isAnonymous ?? false,
+});
 
-    res.status(201).json({
-      success: true,
-      message: 'Report created successfully.',
-      data: {
-        report: populatedReport,
-      },
-    });
+// Update user reputation
+await User.findByIdAndUpdate(req.userId, {
+  $inc: {
+    reputationPoints: 10,
+    trustScore: 2,
+    totalReports: 1,
+  },
+});
+
+// Update user badges
+await updateUserBadges(req.userId);
+
+const populatedReport = await newReport.populate(
+  'reportedBy',
+  'fullName email',
+);
+
+res.status(201).json({
+  success: true,
+  message: 'Report created successfully.',
+  data: {
+    report: populatedReport,
+  },
+});
   } catch (error) {
     next(error);
   }
 }
-
 export async function getAllReports(
   req: Request<unknown, unknown, unknown, GetAllReportsQuery>,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { category, status, priority, page, limit, near, maxDistance } =
+    const { category, status, priority, page, limit, near, maxDistance, sort } =
       req.query;
 
     const filter: Record<string, unknown> = {};
@@ -301,6 +320,7 @@ export async function getAllReports(
       }
 
       const parsedMaxDistance = Number.parseInt(maxDistance ?? '', 10);
+
       const distanceInMeters =
         Number.isFinite(parsedMaxDistance) && parsedMaxDistance > 0
           ? parsedMaxDistance
@@ -321,7 +341,10 @@ export async function getAllReports(
     const parsedLimit = Number.parseInt(limit ?? '', 10);
 
     const currentPage =
-      Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : DEFAULT_PAGE;
+      Number.isFinite(parsedPage) && parsedPage > 0
+        ? parsedPage
+        : DEFAULT_PAGE;
+
     const currentLimit =
       Number.isFinite(parsedLimit) && parsedLimit > 0
         ? Math.min(parsedLimit, MAX_LIMIT)
@@ -329,21 +352,55 @@ export async function getAllReports(
 
     const skip = (currentPage - 1) * currentLimit;
 
-    const query = Report.find(filter).populate('reportedBy', 'name email');
+    const query = Report.find(filter).populate(
+      'reportedBy',
+      'fullName email',
+    );
 
     if (!near) {
-      query.sort({ createdAt: -1 });
-    }
+  switch (sort) {
+    case 'oldest':
+      query.sort({ createdAt: 1 });
+      break;
 
+    case 'most-upvoted':
+      query.sort({ upvotes: -1 });
+      break;
+
+    case 'priority':
+      query.sort({
+        priority: -1,
+        createdAt: -1,
+      });
+      break;
+
+    case 'latest':
+    default:
+      query.sort({ createdAt: -1 });
+      break;
+    }
+    }
     const [reports, totalCount] = await Promise.all([
       query.skip(skip).limit(currentLimit),
       Report.countDocuments(filter),
     ]);
 
+    const sanitizedReports = reports.map((report) => {
+      const reportObj = report.toObject() as any;
+
+      if (reportObj.isAnonymous) {
+        reportObj.reportedBy = {
+          fullName: 'Anonymous Citizen',
+        } as any;
+      }
+
+      return reportObj;
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        reports,
+        reports: sanitizedReports,
         pagination: {
           currentPage,
           limit: currentLimit,
@@ -356,7 +413,6 @@ export async function getAllReports(
     next(error);
   }
 }
-
 export async function getReportById(
   req: Request<{ id: string }>,
   res: Response,
@@ -375,7 +431,7 @@ export async function getReportById(
 
     const report = await Report.findById(id).populate(
       'reportedBy',
-      'name email',
+      'fullName email',
     );
 
     if (!report) {
@@ -386,10 +442,18 @@ export async function getReportById(
       return;
     }
 
+    const reportObj = report.toObject() as any;
+
+    if (reportObj.isAnonymous) {
+      reportObj.reportedBy = {
+        fullName: 'Anonymous Citizen',
+      };
+    }
+
     res.status(200).json({
       success: true,
       data: {
-        report,
+        report: reportObj,
       },
     });
   } catch (error) {
@@ -451,6 +515,7 @@ export async function updateReport(
       location,
       priority,
       isDuplicate,
+      isAnonymous,
     } = req.body;
 
     if (title !== undefined) {
@@ -545,7 +610,7 @@ export async function updateReport(
     const updatedReport = await existingReport.save();
     const populatedReport = await updatedReport.populate(
       'reportedBy',
-      'name email',
+      'fullName email',
     );
 
     res.status(200).json({
@@ -648,21 +713,31 @@ export async function getNearbyReports(
         },
       },
     })
-      .populate("reportedBy", "name email")
+      .populate("reportedBy", "fullName email")
       .sort({ createdAt: -1 });
+
+    const sanitizedReports = reports.map((report) => {
+      const reportObj = report.toObject() as any;
+
+      if (reportObj.isAnonymous) {
+        reportObj.reportedBy = {
+          fullName: "Anonymous Citizen",
+        };
+      }
+
+      return reportObj;
+    });
 
     res.status(200).json({
       success: true,
       data: {
-        reports,
+        reports: sanitizedReports,
       },
     });
-
   } catch (error) {
     next(error);
   }
 }
-
 export async function upvoteReport(
   req: AuthenticatedRequest & { params: { id: string } },
   res: Response,
@@ -793,8 +868,6 @@ export async function removeUpvote(
     next(error);
   }
 }
-
-
 export async function updateReportStatus(
   req: AuthenticatedRequest & { params: { id: string } },
   res: Response,
@@ -830,13 +903,60 @@ export async function updateReportStatus(
       return;
     }
 
-    report.status = status as ReportStatus;
+    // Store previous status
+    const previousStatus = report.status;
 
+    // Update status
+    report.status = status as ReportStatus;
     await report.save();
+
+    // Reward / Penalty only if status changed
+    if (previousStatus !== report.status) {
+      // ===============================
+      // Report Resolved
+      // ===============================
+      if (report.status === 'resolved') {
+        await User.findByIdAndUpdate(report.reportedBy, {
+          $inc: {
+            reputationPoints: 20,
+            trustScore: 5,
+            resolvedReports: 1,
+          },
+        });
+
+        await updateUserBadges(report.reportedBy.toString());
+
+        await Notification.create({
+          user: report.reportedBy,
+          title: 'Report Resolved',
+          message: 'Great news! Your report has been marked as resolved.',
+          type: 'report',
+        });
+      }
+
+      // ===============================
+      // Report Rejected
+      // ===============================
+      if (report.status === 'rejected') {
+        await User.findByIdAndUpdate(report.reportedBy, {
+          $inc: {
+            reputationPoints: -10,
+            trustScore: -3,
+          },
+        });
+
+        await Notification.create({
+          user: report.reportedBy,
+          title: 'Report Rejected',
+          message: 'Your report was reviewed but could not be approved.',
+          type: 'report',
+        });
+      }
+    }
 
     const populatedReport = await report.populate(
       'reportedBy',
-      'name email',
+      'fullName email',
     );
 
     res.status(200).json({
@@ -850,7 +970,6 @@ export async function updateReportStatus(
     next(error);
   }
 }
-
 export async function updateReportPriority(
   req: AuthenticatedRequest & { params: { id: string } },
   res: Response,
@@ -901,6 +1020,127 @@ export async function updateReportPriority(
     res.status(200).json({
       success: true,
       message: 'Report priority updated successfully.',
+      data: {
+        report: populatedReport,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+export async function searchReports(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const query = req.query.query;
+
+    if (typeof query !== 'string' || query.trim() === '') {
+      res.status(400).json({
+        success: false,
+        message: 'Search query is required.',
+      });
+      return;
+    }
+
+    const reports = await Report.find({
+      $or: [
+        {
+          title: {
+            $regex: query,
+            $options: 'i',
+          },
+        },
+        {
+          description: {
+            $regex: query,
+            $options: 'i',
+          },
+        },
+        {
+          category: {
+            $regex: query,
+            $options: 'i',
+          },
+        },
+      ],
+    }).populate('reportedBy', 'fullName email');
+
+    const sanitizedReports = reports.map((report) => {
+      const reportObj = report.toObject() as any;
+
+      if (reportObj.isAnonymous) {
+        reportObj.reportedBy = {
+          fullName: 'Anonymous Citizen',
+        };
+      }
+
+      return reportObj;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        reports: sanitizedReports,
+        count: sanitizedReports.length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+export async function verifyReport(
+  req: AuthenticatedRequest & { params: { id: string } },
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { verified, moderatorRemark } = req.body;
+
+    if (!isValidObjectId(id)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid report ID.',
+      });
+      return;
+    }
+
+    const report = await Report.findById(id);
+
+    if (!report) {
+      res.status(404).json({
+        success: false,
+        message: 'Report not found.',
+      });
+      return;
+    }
+
+    report.verified = verified;
+    report.verifiedBy = new Types.ObjectId(req.userId);
+    report.moderatorRemark = moderatorRemark ?? '';
+
+    await report.save();
+    await Notification.create({
+  user: report.reportedBy,
+  title: verified ? "Report Verified" : "Verification Removed",
+  message: verified
+    ? "Your report has been verified by a moderator."
+    : "Verification has been removed from your report.",
+  type: "report",
+});
+
+    const populatedReport = await report.populate(
+      'reportedBy',
+      'fullName email',
+    );
+
+    res.status(200).json({
+      success: true,
+      message: verified
+        ? 'Report verified successfully.'
+        : 'Report marked as unverified.',
       data: {
         report: populatedReport,
       },

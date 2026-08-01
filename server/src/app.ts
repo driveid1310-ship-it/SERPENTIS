@@ -5,7 +5,10 @@ import authRoutes from './routes/authRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-
+import sosRoutes from './routes/sosRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import notificationRoutes from "./routes/notificationRoutes.js";
+import placeRoutes from "./routes/placeRoutes.js";
 const app = express();
 
 
@@ -16,7 +19,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/comments', commentRoutes);
-
+app.use('/api/sos', sosRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/places', placeRoutes);
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     success: true,
