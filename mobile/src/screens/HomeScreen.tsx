@@ -1,436 +1,640 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useCallback } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import Screen from '../components/Screen/Screen';
-import Header from '../components/Header/Header';
-import AppCard from '../components/Card/AppCard';
-import AppButton from '../components/Button/AppButton';
-import { theme } from '../theme';
 import { useAuth } from '../hooks/useAuth';
-// (imports for types are declared above; avoid duplicate type imports)
+import { authTheme } from '../theme/authTheme';
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Home'
->;
+type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-interface HomeScreenProps {
-  navigation: HomeScreenNavigationProp;
-}
-
-interface QuickActionConfig {
-  key: string;
-  label: string;
-  description: string;
-}
-
-interface NearbyIssueConfig {
-  key: string;
-  title: string;
-  distance: string;
-  status: string;
-}
-
-interface TrendingIssueConfig {
-  key: string;
-  title: string;
-  votes: string;
-  category: string;
-}
-
-interface HeritageSpotlightConfig {
-  key: string;
-  title: string;
-  location: string;
-}
-
-const QUICK_ACTIONS: QuickActionConfig[] = [
+const quickActions = [
   {
-    key: 'report-issue',
-    label: 'Report Issue',
-    description: 'Flag a problem in your area',
+    title: 'Report Issue',
+    subtitle: 'Report a civic problem',
+    icon: '!',
   },
   {
-    key: 'explore-map',
-    label: 'Explore Map',
-    description: 'View live activity nearby',
+    title: 'SOS',
+    subtitle: 'Get emergency help',
+    icon: 'SOS',
   },
   {
-    key: 'community',
-    label: 'Community',
-    description: 'Connect with local members',
+    title: 'Places',
+    subtitle: 'Explore nearby places',
+    icon: '⌖',
   },
   {
-    key: 'heritage',
-    label: 'Heritage',
-    description: 'Discover local landmarks',
+    title: 'Services',
+    subtitle: 'Find public services',
+    icon: '✓',
   },
 ];
 
-const NEARBY_ISSUES: NearbyIssueConfig[] = [
+const nearbyIssues = [
   {
-    key: 'nearby-1',
-    title: 'Streetlight outage on 5th Ave',
-    distance: '0.4 km away',
-    status: 'Pending',
+    title: 'Road damage',
+    location: '0.8 km away',
+    status: 'In progress',
   },
   {
-    key: 'nearby-2',
-    title: 'Pothole near Central Park entrance',
-    distance: '0.8 km away',
-    status: 'In Progress',
-  },
-  {
-    key: 'nearby-3',
-    title: 'Overflowing bin at Market Square',
-    distance: '1.2 km away',
-    status: 'Pending',
+    title: 'Street light outage',
+    location: '1.2 km away',
+    status: 'Reported',
   },
 ];
 
-const TRENDING_ISSUES: TrendingIssueConfig[] = [
+const trendingIssues = [
   {
-    key: 'trending-1',
-    title: 'Water supply disruption downtown',
-    votes: '482 votes',
-    category: 'Utilities',
+    title: 'Water supply interruption',
+    reports: '24 reports',
   },
   {
-    key: 'trending-2',
-    title: 'Illegal dumping near riverbank',
-    votes: '311 votes',
-    category: 'Environment',
-  },
-  {
-    key: 'trending-3',
-    title: 'Traffic signal malfunction',
-    votes: '204 votes',
-    category: 'Infrastructure',
+    title: 'Traffic signal issue',
+    reports: '17 reports',
   },
 ];
 
-const HERITAGE_SPOTLIGHT: HeritageSpotlightConfig = {
-  key: 'heritage-spotlight-1',
-  title: 'The Old Clock Tower',
-  location: 'Founded 1887 · City Center',
-};
+export default function HomeScreen({
+  navigation,
+}: HomeScreenProps) {
+  const { user, logout } = useAuth();
 
-export default function HomeScreen({ navigation }: HomeScreenProps) {
-  const { logout } = useAuth();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const handleLogout = useCallback(async () => {
+    await logout();
+    navigation.replace('Login');
+  }, [logout, navigation]);
 
-  const handleQuickActionPress = useCallback((_key: string) => {
-    // Static UI only — no backend wiring in this sprint.
-  }, []);
-
-  const handleViewAllNearbyPress = useCallback(() => {
-    // Static UI only — no backend wiring in this sprint.
-  }, []);
-
-  const handleViewAllTrendingPress = useCallback(() => {
-    // Static UI only — no backend wiring in this sprint.
-  }, []);
-
-  const handleHeritageSpotlightPress = useCallback(() => {
-    // Static UI only — no backend wiring in this sprint.
-  }, []);
-
-  const handleLogoutPress = useCallback(async () => {
-    if (isLoggingOut) {
-      return;
-    }
-
-    setIsLoggingOut(true);
-    try {
-      await logout();
-      navigation.replace('Login');
-    } finally {
-      setIsLoggingOut(false);
-    }
-  }, [isLoggingOut, logout, navigation]);
+  const firstName = user?.fullName?.split(' ')[0] || 'Citizen';
 
   return (
-    <Screen scrollable keyboardAvoiding={false}>
-      <Header
-        title="SERPENTIS"
-        subtitle="Welcome back, operator."
-        rightAction={
-          <Pressable
-            onPress={handleLogoutPress}
-            hitSlop={8}
-            disabled={isLoggingOut}
-          >
-            {isLoggingOut ? (
-              <ActivityIndicator size="small" color={theme.colors.danger} />
-            ) : (
-              <Text style={styles.logoutText}>Logout</Text>
-            )}
-          </Pressable>
-        }
-      />
+    <Screen>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.eyebrow}>SERPENTIS</Text>
+            <Text style={styles.greeting}>Hello, {firstName}</Text>
+            <Text style={styles.subtitle}>
+              Stay informed. Stay connected.
+            </Text>
+          </View>
 
-      <View style={styles.section}>
-        <AppCard elevation="md">
-          <View style={styles.trustScoreHeader}>
-            <Text style={styles.trustScoreLabel}>Trust Score</Text>
-            <View style={styles.trustScoreBadge}>
-              <Text style={styles.trustScoreBadgeText}>VERIFIED</Text>
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [
+              styles.profileButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <Text style={styles.profileInitial}>
+              {firstName.charAt(0).toUpperCase()}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Trust Score */}
+        <View style={styles.trustCard}>
+          <View style={styles.trustTopRow}>
+            <View>
+              <Text style={styles.cardEyebrow}>COMMUNITY TRUST</Text>
+              <Text style={styles.trustTitle}>Your Trust Score</Text>
+            </View>
+
+            <View style={styles.scoreCircle}>
+              <Text style={styles.scoreValue}>82</Text>
+              <Text style={styles.scoreLabel}>/100</Text>
             </View>
           </View>
-          <Text style={styles.trustScoreValue}>87</Text>
-          <Text style={styles.trustScoreDescription}>
-            Based on your contributions and community trust ratings.
-          </Text>
-        </AppCard>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActionsGrid}>
-          {QUICK_ACTIONS.map((action) => (
-            <View key={action.key} style={styles.quickActionItem}>
-              <AppCard
-                elevation="sm"
-                onPress={() => handleQuickActionPress(action.key)}
-                style={styles.quickActionCard}
-              >
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-                <Text style={styles.quickActionDescription} numberOfLines={2}>
-                  {action.description}
-                </Text>
-              </AppCard>
-            </View>
+          <View style={styles.progressTrack}>
+            <View style={styles.progressFill} />
+          </View>
+
+          <Text style={styles.trustDescription}>
+            Your reports and community activity are helping make the
+            neighbourhood better.
+          </Text>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <Text style={styles.sectionSubtitle}>
+              What would you like to do?
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.actionsGrid}>
+          {quickActions.map((action) => (
+            <Pressable
+              key={action.title}
+              onPress={() => {
+                if (action.title === 'Report Issue') {
+                  navigation.navigate('Home');
+                }
+              }}
+              style={({ pressed }) => [
+                styles.actionCard,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.actionIcon}>
+                <Text style={styles.actionIconText}>{action.icon}</Text>
+              </View>
+
+              <Text style={styles.actionTitle}>{action.title}</Text>
+              <Text style={styles.actionSubtitle}>
+                {action.subtitle}
+              </Text>
+            </Pressable>
           ))}
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Nearby Issues</Text>
-          <Pressable onPress={handleViewAllNearbyPress} hitSlop={8}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </Pressable>
-        </View>
-
-        {NEARBY_ISSUES.map((issue) => (
-          <AppCard key={issue.key} elevation="sm" style={styles.listCard}>
-            <View style={styles.listCardHeader}>
-              <Text style={styles.listCardTitle} numberOfLines={1}>
-                {issue.title}
-              </Text>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>{issue.status}</Text>
-              </View>
-            </View>
-            <Text style={styles.listCardMeta}>{issue.distance}</Text>
-          </AppCard>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Trending Issues</Text>
-          <Pressable onPress={handleViewAllTrendingPress} hitSlop={8}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </Pressable>
-        </View>
-
-        {TRENDING_ISSUES.map((issue) => (
-          <AppCard key={issue.key} elevation="sm" style={styles.listCard}>
-            <View style={styles.listCardHeader}>
-              <Text style={styles.listCardTitle} numberOfLines={1}>
-                {issue.title}
-              </Text>
-              <Text style={styles.votesText}>{issue.votes}</Text>
-            </View>
-            <Text style={styles.listCardMeta}>{issue.category}</Text>
-          </AppCard>
-        ))}
-      </View>
-
-      <View style={[styles.section, styles.lastSection]}>
-        <Text style={styles.sectionTitle}>Heritage Spotlight</Text>
-        <AppCard
-          elevation="md"
-          onPress={handleHeritageSpotlightPress}
-          style={styles.heritageCard}
-        >
-          <View style={styles.heritageBadge}>
-            <Text style={styles.heritageBadgeText}>FEATURED</Text>
+        {/* Nearby Issues */}
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>Nearby Issues</Text>
+            <Text style={styles.sectionSubtitle}>
+              Recent activity around you
+            </Text>
           </View>
-          <Text style={styles.heritageTitle}>{HERITAGE_SPOTLIGHT.title}</Text>
-          <Text style={styles.heritageLocation}>
-            {HERITAGE_SPOTLIGHT.location}
+
+          <Text style={styles.viewAll}>View all</Text>
+        </View>
+
+        {nearbyIssues.map((issue) => (
+          <View key={issue.title} style={styles.issueCard}>
+            <View style={styles.issueIcon}>
+              <Text style={styles.issueIconText}>!</Text>
+            </View>
+
+            <View style={styles.issueContent}>
+              <Text style={styles.issueTitle}>{issue.title}</Text>
+              <Text style={styles.issueLocation}>
+                {issue.location}
+              </Text>
+            </View>
+
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>{issue.status}</Text>
+            </View>
+          </View>
+        ))}
+
+        {/* Trending */}
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>Trending Issues</Text>
+            <Text style={styles.sectionSubtitle}>
+              What your community is talking about
+            </Text>
+          </View>
+        </View>
+
+        {trendingIssues.map((issue, index) => (
+          <View key={issue.title} style={styles.trendingCard}>
+            <View style={styles.trendingNumber}>
+              <Text style={styles.trendingNumberText}>
+                {index + 1}
+              </Text>
+            </View>
+
+            <View style={styles.trendingContent}>
+              <Text style={styles.trendingTitle}>
+                {issue.title}
+              </Text>
+              <Text style={styles.trendingReports}>
+                {issue.reports}
+              </Text>
+            </View>
+
+            <Text style={styles.arrow}>›</Text>
+          </View>
+        ))}
+
+        {/* Heritage */}
+        <View style={styles.heritageCard}>
+          <View style={styles.heritageBadge}>
+            <Text style={styles.heritageBadgeText}>HERITAGE</Text>
+          </View>
+
+          <Text style={styles.heritageTitle}>
+            Discover Your City's Heritage
           </Text>
-          <AppButton
-            label="Explore Heritage Site"
-            onPress={handleHeritageSpotlightPress}
-            variant="outline"
-            style={styles.heritageButton}
-          />
-        </AppCard>
-      </View>
+
+          <Text style={styles.heritageDescription}>
+            Explore historical places, stories and cultural landmarks
+            around you.
+          </Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.heritageButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.heritageButtonText}>
+              Explore Heritage
+            </Text>
+            <Text style={styles.heritageArrow}>→</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.footerText}>
+          SERPENTIS • Building better communities together
+        </Text>
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  logoutText: {
-    fontSize: theme.typography.fontSizes.sm,
-    fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.danger,
+  scrollContent: {
+    paddingHorizontal: authTheme.spacing.lg,
+    paddingTop: authTheme.spacing.lg,
+    paddingBottom: authTheme.spacing.xxxl,
   },
-  section: {
-    marginTop: theme.spacing.xl,
-  },
-  lastSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: theme.typography.fontSizes.md,
-    fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.md,
-  },
-  sectionHeaderRow: {
+
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.md,
+    marginBottom: authTheme.spacing.xl,
   },
-  viewAllText: {
-    fontSize: theme.typography.fontSizes.sm,
-    fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.accent,
+
+  eyebrow: {
+    fontSize: authTheme.typography.fontSizes.xs,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    letterSpacing: 2,
+    color: authTheme.colors.accent,
+    marginBottom: authTheme.spacing.xs,
   },
-  trustScoreHeader: {
-    flexDirection: 'row',
+
+  greeting: {
+    fontSize: authTheme.typography.h2,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.textPrimary,
+  },
+
+  subtitle: {
+    marginTop: authTheme.spacing.xs,
+    fontSize: authTheme.typography.fontSizes.sm,
+    color: authTheme.colors.textSecondary,
+  },
+
+  profileButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.sm,
-  },
-  trustScoreLabel: {
-    fontSize: theme.typography.fontSizes.sm,
-    fontWeight: theme.typography.fontWeights.semibold,
-    letterSpacing: 1,
-    color: theme.colors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  trustScoreBadge: {
+    justifyContent: 'center',
+    backgroundColor: authTheme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.accent,
-    borderRadius: theme.radius.round,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 3,
+    borderColor: authTheme.colors.border,
   },
-  trustScoreBadgeText: {
-    fontSize: theme.typography.fontSizes.xs,
-    fontWeight: theme.typography.fontWeights.bold,
-    letterSpacing: 1,
-    color: theme.colors.accent,
+
+  profileInitial: {
+    fontSize: authTheme.typography.fontSizes.md,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.accent,
   },
-  trustScoreValue: {
-    fontSize: 40,
-    fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.accent,
-    marginBottom: theme.spacing.xs,
+
+  pressed: {
+    opacity: 0.7,
   },
-  trustScoreDescription: {
-    fontSize: theme.typography.fontSizes.sm,
-    color: theme.colors.textSecondary,
-    lineHeight: 18,
+
+  trustCard: {
+    backgroundColor: authTheme.colors.glass,
+    borderWidth: 1,
+    borderColor: authTheme.colors.glassBorder,
+    borderRadius: authTheme.radius.xl,
+    padding: authTheme.spacing.xl,
+    marginBottom: authTheme.spacing.xxl,
   },
-  quickActionsGrid: {
+
+  trustTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  cardEyebrow: {
+    fontSize: authTheme.typography.fontSizes.xs,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    letterSpacing: 1.5,
+    color: authTheme.colors.textSecondary,
+    marginBottom: authTheme.spacing.xs,
+  },
+
+  trustTitle: {
+    fontSize: authTheme.typography.h3,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.textPrimary,
+  },
+
+  scoreCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: authTheme.colors.accent,
+  },
+
+  scoreValue: {
+    fontSize: authTheme.typography.h2,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.textPrimary,
+  },
+
+  scoreLabel: {
+    fontSize: authTheme.typography.fontSizes.xs,
+    color: authTheme.colors.textSecondary,
+    marginTop: -4,
+  },
+
+  progressTrack: {
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: authTheme.colors.border,
+    overflow: 'hidden',
+    marginTop: authTheme.spacing.lg,
+  },
+
+  progressFill: {
+    width: '82%',
+    height: '100%',
+    backgroundColor: authTheme.colors.accent,
+    borderRadius: 4,
+  },
+
+  trustDescription: {
+    marginTop: authTheme.spacing.md,
+    fontSize: authTheme.typography.fontSizes.sm,
+    lineHeight: 20,
+    color: authTheme.colors.textSecondary,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: authTheme.spacing.md,
+    marginTop: authTheme.spacing.lg,
+  },
+
+  sectionTitle: {
+    fontSize: authTheme.typography.h3,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.textPrimary,
+  },
+
+  sectionSubtitle: {
+    marginTop: 3,
+    fontSize: authTheme.typography.fontSizes.xs,
+    color: authTheme.colors.textSecondary,
+  },
+
+  viewAll: {
+    fontSize: authTheme.typography.fontSizes.xs,
+    fontWeight: authTheme.typography.fontWeights.semibold,
+    color: authTheme.colors.accent,
+  },
+
+  actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -theme.spacing.xs,
+    justifyContent: 'space-between',
   },
-  quickActionItem: {
-    width: '50%',
-    paddingHorizontal: theme.spacing.xs,
-    marginBottom: theme.spacing.sm,
+
+  actionCard: {
+    width: '48%',
+    minHeight: 145,
+    padding: authTheme.spacing.lg,
+    marginBottom: authTheme.spacing.md,
+    borderRadius: authTheme.radius.lg,
+    backgroundColor: authTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: authTheme.colors.border,
   },
-  quickActionCard: {
-    minHeight: 96,
+
+  actionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: authTheme.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: authTheme.colors.accentMuted,
+    marginBottom: authTheme.spacing.md,
   },
-  quickActionLabel: {
-    fontSize: theme.typography.fontSizes.md,
-    fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.xs,
+
+  actionIconText: {
+    fontSize: authTheme.typography.fontSizes.md,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.accent,
   },
-  quickActionDescription: {
-    fontSize: theme.typography.fontSizes.xs,
-    color: theme.colors.textSecondary,
-    lineHeight: 16,
+
+  actionTitle: {
+    fontSize: authTheme.typography.fontSizes.md,
+    fontWeight: authTheme.typography.fontWeights.semibold,
+    color: authTheme.colors.textPrimary,
   },
-  listCard: {
-    marginBottom: theme.spacing.sm,
+
+  actionSubtitle: {
+    marginTop: authTheme.spacing.xs,
+    fontSize: authTheme.typography.fontSizes.xs,
+    lineHeight: 17,
+    color: authTheme.colors.textSecondary,
   },
-  listCardHeader: {
+
+  issueCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.xs,
+    padding: authTheme.spacing.md,
+    marginBottom: authTheme.spacing.sm,
+    borderRadius: authTheme.radius.lg,
+    backgroundColor: authTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: authTheme.colors.border,
   },
-  listCardTitle: {
+
+  issueIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: authTheme.colors.errorMuted,
+    marginRight: authTheme.spacing.md,
+  },
+
+  issueIconText: {
+    fontSize: authTheme.typography.fontSizes.md,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.error,
+  },
+
+  issueContent: {
     flex: 1,
-    fontSize: theme.typography.fontSizes.sm,
-    fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.textPrimary,
-    marginRight: theme.spacing.sm,
   },
-  listCardMeta: {
-    fontSize: theme.typography.fontSizes.xs,
-    color: theme.colors.textSecondary,
+
+  issueTitle: {
+    fontSize: authTheme.typography.fontSizes.sm,
+    fontWeight: authTheme.typography.fontWeights.semibold,
+    color: authTheme.colors.textPrimary,
   },
+
+  issueLocation: {
+    marginTop: 3,
+    fontSize: authTheme.typography.fontSizes.xs,
+    color: authTheme.colors.textSecondary,
+  },
+
   statusBadge: {
+    paddingHorizontal: authTheme.spacing.sm,
+    paddingVertical: authTheme.spacing.xs,
+    borderRadius: authTheme.radius.round,
+    backgroundColor: authTheme.colors.accentMuted,
+  },
+
+  statusText: {
+    fontSize: 10,
+    fontWeight: authTheme.typography.fontWeights.semibold,
+    color: authTheme.colors.accent,
+  },
+
+  trendingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: authTheme.spacing.md,
+    marginBottom: authTheme.spacing.sm,
+    borderRadius: authTheme.radius.lg,
+    backgroundColor: authTheme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.round,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
+    borderColor: authTheme.colors.border,
   },
-  statusBadgeText: {
-    fontSize: theme.typography.fontSizes.xs,
-    fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.textSecondary,
+
+  trendingNumber: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: authTheme.colors.accentMuted,
+    marginRight: authTheme.spacing.md,
   },
-  votesText: {
-    fontSize: theme.typography.fontSizes.xs,
-    fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.accent,
+
+  trendingNumberText: {
+    fontSize: authTheme.typography.fontSizes.sm,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.accent,
   },
+
+  trendingContent: {
+    flex: 1,
+  },
+
+  trendingTitle: {
+    fontSize: authTheme.typography.fontSizes.sm,
+    fontWeight: authTheme.typography.fontWeights.semibold,
+    color: authTheme.colors.textPrimary,
+  },
+
+  trendingReports: {
+    marginTop: 3,
+    fontSize: authTheme.typography.fontSizes.xs,
+    color: authTheme.colors.textSecondary,
+  },
+
+  arrow: {
+    fontSize: 28,
+    color: authTheme.colors.textSecondary,
+    marginLeft: authTheme.spacing.sm,
+  },
+
   heritageCard: {
-    alignItems: 'flex-start',
-  },
-  heritageBadge: {
+    marginTop: authTheme.spacing.xl,
+    padding: authTheme.spacing.xl,
+    borderRadius: authTheme.radius.xl,
+    backgroundColor: authTheme.colors.glass,
     borderWidth: 1,
-    borderColor: theme.colors.accent,
-    borderRadius: theme.radius.round,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 3,
-    marginBottom: theme.spacing.sm,
+    borderColor: authTheme.colors.glassBorder,
   },
+
+  heritageBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: authTheme.spacing.sm,
+    paddingVertical: authTheme.spacing.xs,
+    borderRadius: authTheme.radius.round,
+    backgroundColor: authTheme.colors.accentMuted,
+    marginBottom: authTheme.spacing.md,
+  },
+
   heritageBadgeText: {
-    fontSize: theme.typography.fontSizes.xs,
-    fontWeight: theme.typography.fontWeights.bold,
+    fontSize: 10,
+    fontWeight: authTheme.typography.fontWeights.bold,
     letterSpacing: 1,
-    color: theme.colors.accent,
+    color: authTheme.colors.accent,
   },
+
   heritageTitle: {
-    fontSize: theme.typography.fontSizes.lg,
-    fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.xs,
+    fontSize: authTheme.typography.h3,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.textPrimary,
   },
-  heritageLocation: {
-    fontSize: theme.typography.fontSizes.sm,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.md,
+
+  heritageDescription: {
+    marginTop: authTheme.spacing.sm,
+    fontSize: authTheme.typography.fontSizes.sm,
+    lineHeight: 20,
+    color: authTheme.colors.textSecondary,
   },
+
   heritageButton: {
-    marginTop: theme.spacing.xs,
+    marginTop: authTheme.spacing.lg,
+    minHeight: 46,
+    paddingHorizontal: authTheme.spacing.lg,
+    borderRadius: authTheme.radius.md,
+    backgroundColor: authTheme.colors.accent,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  heritageButtonText: {
+    fontSize: authTheme.typography.fontSizes.sm,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.background,
+  },
+
+  heritageArrow: {
+    marginLeft: authTheme.spacing.sm,
+    fontSize: 18,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.background,
+  },
+
+  footerText: {
+    marginTop: authTheme.spacing.xxl,
+    textAlign: 'center',
+    fontSize: 10,
+    color: authTheme.colors.placeholder,
   },
 });
