@@ -21,7 +21,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 interface RegisterRequestBody {
-  name?: string;
+  fullName?: string;
   email?: string;
   password?: string;
 }
@@ -52,7 +52,7 @@ function generateToken(userId: string): string {
 function sanitizeUser(user: IUser) {
   return {
     id: user._id.toString(),
-    name: user.fullName,
+    fullName: user.fullName,
     email: user.email,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -65,54 +65,69 @@ export async function register(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { name, email, password } = req.body;
+    const { fullName, email, password } = req.body;
 
-    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    if (
+      !fullName ||
+      typeof fullName !== "string" ||
+      fullName.trim().length < 2
+    ) {
       res.status(400).json({
         success: false,
-        message: 'Name is required and must be at least 2 characters long.',
+        message: "Full name is required and must be at least 2 characters long.",
       });
       return;
     }
 
-    if (!email || typeof email !== 'string' || !isValidEmail(email)) {
+    if (
+      !email ||
+      typeof email !== "string" ||
+      !isValidEmail(email)
+    ) {
       res.status(400).json({
         success: false,
-        message: 'A valid email address is required.',
+        message: "A valid email address is required.",
       });
       return;
     }
 
-    if (!password || typeof password !== 'string' || password.length < 8) {
+    if (
+      !password ||
+      typeof password !== "string" ||
+      password.length < 8
+    ) {
       res.status(400).json({
         success: false,
-        message: 'Password is required and must be at least 8 characters long.',
+        message: "Password is required and must be at least 8 characters long.",
       });
       return;
     }
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
     if (existingUser) {
       res.status(409).json({
         success: false,
-        message: 'An account with this email already exists.',
+        message: "An account with this email already exists.",
       });
       return;
     }
 
     const newUser = await User.create({
-    fullName: name.trim(),
-    email: normalizedEmail,
-    password,
+      fullName: fullName.trim(),
+      email: normalizedEmail,
+      password,
     });
 
     const token = generateToken(newUser._id.toString());
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully.',
+      message: "Account created successfully.",
       data: {
         user: sanitizeUser(newUser),
         token,
@@ -149,7 +164,9 @@ export async function login(
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({
+    email: normalizedEmail,
+  }).select("+password");
     if (!user) {
       res.status(401).json({
         success: false,
@@ -158,20 +175,15 @@ export async function login(
       return;
     }
 
-    console.log("Entered password:", password);
-    console.log("Stored password:", user.password);
+  const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    console.log("Password valid:", isPasswordValid);
-    if (!isPasswordValid) {
-      res.status(401).json({
-        success: false,
-        message: 'Invalid email or password.',
-      });
-      return;
-    }
-
+  if (!isPasswordValid) {
+    res.status(401).json({
+    success: false,
+    message: "Invalid email or password.",
+  });
+  return;
+}
     const token = generateToken(user._id.toString());
 
     res.status(200).json({

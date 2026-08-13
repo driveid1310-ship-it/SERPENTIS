@@ -129,6 +129,19 @@ const reportSchema = new Schema<IReport>(
       coordinates: {
         type: [Number],
         required: true,
+        validate: {
+          validator: function (val: number[]) {
+            return (
+              Array.isArray(val) &&
+              val.length === 2 &&
+              val[0]! >= -180 &&
+              val[0]! <= 180 &&
+              val[1]! >= -90 &&
+              val[1]! <= 90
+            );
+          },
+          message: 'Coordinates must be [longitude, latitude] within valid geographic bounds.',
+        },
       },
     },
 
@@ -193,7 +206,9 @@ reportSchema.index({
 reportSchema.index({ status: 1 });
 reportSchema.index({ category: 1 });
 reportSchema.index({ reportedBy: 1 });
-
+reportSchema.index({
+  priority: 1,
+});
 const Report = model<IReport>('Report', reportSchema);
 
 export default Report;

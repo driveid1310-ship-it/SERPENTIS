@@ -1,19 +1,16 @@
 {
+  "extends": "@react-native/typescript-config",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "commonjs",
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "strict": true,
-    "esModuleInterop": true,
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "jsx": "react",
-    "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
-    "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": ["react", "react-native"]
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*",
+    "App.tsx",
+    "index.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "android",
+    "ios"
+  ]
 }

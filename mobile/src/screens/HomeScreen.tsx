@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import Screen from '../components/Screen/Screen';
@@ -7,6 +7,8 @@ import Header from '../components/Header/Header';
 import AppCard from '../components/Card/AppCard';
 import AppButton from '../components/Button/AppButton';
 import { theme } from '../theme';
+import { useAuth } from '../hooks/useAuth';
+// (imports for types are declared above; avoid duplicate type imports)
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -115,6 +117,9 @@ const HERITAGE_SPOTLIGHT: HeritageSpotlightConfig = {
 };
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
+  const { logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const handleQuickActionPress = useCallback((_key: string) => {
     // Static UI only — no backend wiring in this sprint.
   }, []);
@@ -131,9 +136,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     // Static UI only — no backend wiring in this sprint.
   }, []);
 
-  const handleLogoutPress = useCallback(() => {
-    navigation.navigate('Login');
-  }, [navigation]);
+  const handleLogoutPress = useCallback(async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigation.replace('Login');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }, [isLoggingOut, logout, navigation]);
 
   return (
     <Screen scrollable keyboardAvoiding={false}>
@@ -141,8 +156,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         title="SERPENTIS"
         subtitle="Welcome back, operator."
         rightAction={
-          <Pressable onPress={handleLogoutPress} hitSlop={8}>
-            <Text style={styles.logoutText}>Logout</Text>
+          <Pressable
+            onPress={handleLogoutPress}
+            hitSlop={8}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color={theme.colors.danger} />
+            ) : (
+              <Text style={styles.logoutText}>Logout</Text>
+            )}
           </Pressable>
         }
       />

@@ -1,9 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -11,26 +9,16 @@ import {
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-  Easing,
-} from 'react-native-reanimated';
+import { authTheme } from '../theme/authTheme';
+import AuthHeader from '../components/AuthHeader/AuthHeader';
+import AuthField from '../components/AuthField/AuthField';
+import AuthButton from '../components/AuthButton/AuthButton';
 
-const COLORS = {
-  background: '#050505',
-  surface: '#0D0F0E',
-  border: '#163A32',
-  accent: '#00FFB2',
-  textPrimary: '#E6FFF6',
-  textSecondary: '#7C9992',
-  placeholder: '#4E6560',
-};
-
-// ...existing code...
-type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'ForgotPassword'
+>;
 
 interface ForgotPasswordScreenProps {
   navigation: ForgotPasswordScreenNavigationProp;
@@ -40,59 +28,32 @@ export default function ForgotPasswordScreen({
   navigation,
 }: ForgotPasswordScreenProps) {
   const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const containerOpacity = useSharedValue(0);
-  const containerTranslateY = useSharedValue(24);
-  const submitButtonScale = useSharedValue(1);
-  const backLinkScale = useSharedValue(1);
-
-  useEffect(() => {
-    containerOpacity.value = withTiming(1, {
-      duration: 700,
-      easing: Easing.out(Easing.exp),
-    });
-    containerTranslateY.value = withTiming(0, {
-      duration: 700,
-      easing: Easing.out(Easing.exp),
-    });
-  }, [containerOpacity, containerTranslateY]);
-
-  const containerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: containerOpacity.value,
-    transform: [{ translateY: containerTranslateY.value }],
-  }));
-
-  const submitButtonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: submitButtonScale.value }],
-  }));
-
-  const backLinkAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: backLinkScale.value }],
-  }));
-
-  const handleSubmitPressIn = useCallback(() => {
-    submitButtonScale.value = withTiming(0.96, { duration: 100 });
-  }, [submitButtonScale]);
-
-  const handleSubmitPressOut = useCallback(() => {
-    submitButtonScale.value = withSpring(1, { damping: 12, stiffness: 180 });
-  }, [submitButtonScale]);
-
-  const handleBackLinkPressIn = useCallback(() => {
-    backLinkScale.value = withTiming(0.96, { duration: 100 });
-  }, [backLinkScale]);
-
-  const handleBackLinkPressOut = useCallback(() => {
-    backLinkScale.value = withSpring(1, { damping: 12, stiffness: 180 });
-  }, [backLinkScale]);
-
-  const handleSubmitPress = useCallback(() => {
-    navigation.navigate('Login');
+  const handleBackPress = useCallback(() => {
+    navigation.goBack();
   }, [navigation]);
 
-  const handleBackToLoginPress = useCallback(() => {
-    navigation.navigate('Login');
-  }, [navigation]);
+  const handleSubmitPress = useCallback(async () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
+      setError('Enter a valid email address.');
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    // Integration point: call the future "request password reset" API here
+    // once the backend exposes it, then navigate on success.
+    try {
+      navigation.navigate('OtpVerification', { email: trimmedEmail });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [email, navigation]);
 
   return (
     <KeyboardAvoidingView
@@ -104,53 +65,40 @@ export default function ForgotPasswordScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View style={[styles.container, containerAnimatedStyle]}>
-          <View style={styles.header}>
-            <Text style={styles.logoText}>SERPENTIS</Text>
-            <Text style={styles.welcomeText}>Reset Password</Text>
-            <Text style={styles.subtitleText}>
-              Enter your email and we will send you a secure reset link.
-            </Text>
-          </View>
+        <AuthHeader
+          title="Reset Password"
+          subtitle="Enter your account email and we'll send a verification code."
+          onBackPress={handleBackPress}
+        />
 
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="you@example.com"
-                placeholderTextColor={COLORS.placeholder}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-              />
-            </View>
-          </View>
+        <View style={styles.card}>
+          <AuthField
+            label="Email"
+            placeholder="you@example.com"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            editable={!isSubmitting}
+            errorMessage={error ?? undefined}
+          />
 
-          <Animated.View style={submitButtonAnimatedStyle}>
-            <Pressable
-              style={styles.submitButton}
-              onPress={handleSubmitPress}
-              onPressIn={handleSubmitPressIn}
-              onPressOut={handleSubmitPressOut}
-            >
-              <Text style={styles.submitButtonText}>SEND RESET LINK</Text>
-            </Pressable>
-          </Animated.View>
+          <AuthButton
+            label="Send Code"
+            onPress={handleSubmitPress}
+            loading={isSubmitting}
+            style={styles.submitButton}
+          />
 
-          <Animated.View style={backLinkAnimatedStyle}>
-            <Pressable
-              style={styles.backLinkButton}
-              onPress={handleBackToLoginPress}
-              onPressIn={handleBackLinkPressIn}
-              onPressOut={handleBackLinkPressOut}
-            >
-              <Text style={styles.backLinkText}>Back to Login</Text>
-            </Pressable>
-          </Animated.View>
-        </Animated.View>
+          <Text
+            style={styles.backLinkText}
+            onPress={isSubmitting ? undefined : handleBackPress}
+            suppressHighlighting
+          >
+            Back to Login
+          </Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -159,84 +107,29 @@ export default function ForgotPasswordScreen({
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: authTheme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingHorizontal: authTheme.spacing.xxl,
+    paddingVertical: authTheme.spacing.xxxl,
   },
-  container: {
-    width: '100%',
-  },
-  header: {
-    marginBottom: 36,
-  },
-  logoText: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 4,
-    color: COLORS.accent,
-    marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginBottom: 8,
-  },
-  subtitleText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 18,
-  },
-  form: {
-    marginBottom: 28,
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  textInput: {
-    backgroundColor: COLORS.surface,
+  card: {
+    backgroundColor: authTheme.colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: COLORS.textPrimary,
+    borderColor: authTheme.colors.glassBorder,
+    borderRadius: authTheme.radius.xl,
+    padding: authTheme.spacing.xl,
   },
   submitButton: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  submitButtonText: {
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 2,
-    color: COLORS.background,
-  },
-  backLinkButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: authTheme.spacing.sm,
+    marginBottom: authTheme.spacing.lg,
   },
   backLinkText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.accent,
+    fontSize: authTheme.typography.fontSizes.sm,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.accent,
+    textAlign: 'center',
   },
 });

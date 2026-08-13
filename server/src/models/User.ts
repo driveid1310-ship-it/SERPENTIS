@@ -44,7 +44,8 @@ const UserSchema = new Schema<IUser>(
     password: {
       type: String,
       required: true,
-      minlength: 6,
+      minlength: 8,
+      select: false,
     },
 
     phone: {
@@ -108,8 +109,9 @@ UserSchema.pre("save", async function (this: IUser) {
 });
 
 UserSchema.methods.comparePassword = async function (
+  this: IUser,
   candidatePassword: string
-) {
+): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
 

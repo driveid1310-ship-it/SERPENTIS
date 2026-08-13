@@ -1,9 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -11,25 +9,12 @@ import {
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-  Easing,
-} from 'react-native-reanimated';
+import { useAuth } from '../hooks/useAuth';
+import { authTheme } from '../theme/authTheme';
+import AuthHeader from '../components/AuthHeader/AuthHeader';
+import AuthField from '../components/AuthField/AuthField';
+import AuthButton from '../components/AuthButton/AuthButton';
 
-const COLORS = {
-  background: '#050505',
-  surface: '#0D0F0E',
-  border: '#163A32',
-  accent: '#00FFB2',
-  textPrimary: '#E6FFF6',
-  textSecondary: '#7C9992',
-  placeholder: '#4E6560',
-};
-
-// ...existing code...
 type SignupScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Signup'
@@ -40,74 +25,58 @@ interface SignupScreenProps {
 }
 
 export default function SignupScreen({ navigation }: SignupScreenProps) {
+  const { register } = useAuth();
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] =
-    useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const containerOpacity = useSharedValue(0);
-  const containerTranslateY = useSharedValue(24);
-  const createAccountScale = useSharedValue(1);
-  const loginLinkScale = useSharedValue(1);
+  const handleCreateAccountPress = useCallback(async () => {
+    const trimmedFullName = fullName.trim();
+    const trimmedEmail = email.trim();
 
-  useEffect(() => {
-    containerOpacity.value = withTiming(1, {
-      duration: 700,
-      easing: Easing.out(Easing.exp),
-    });
-    containerTranslateY.value = withTiming(0, {
-      duration: 700,
-      easing: Easing.out(Easing.exp),
-    });
-  }, [containerOpacity, containerTranslateY]);
+    if (!trimmedFullName || !trimmedEmail || !password || !confirmPassword) {
+      setError('All fields are required.');
+      return;
+    }
 
-  const containerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: containerOpacity.value,
-    transform: [{ translateY: containerTranslateY.value }],
-  }));
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
 
-  const createAccountAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: createAccountScale.value }],
-  }));
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
 
-  const loginLinkAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: loginLinkScale.value }],
-  }));
+    setError(null);
+    setIsSubmitting(true);
 
-  const handleCreateAccountPressIn = useCallback(() => {
-    createAccountScale.value = withTiming(0.96, { duration: 100 });
-  }, [createAccountScale]);
-
-  const handleCreateAccountPressOut = useCallback(() => {
-    createAccountScale.value = withSpring(1, { damping: 12, stiffness: 180 });
-  }, [createAccountScale]);
-
-  const handleLoginLinkPressIn = useCallback(() => {
-    loginLinkScale.value = withTiming(0.96, { duration: 100 });
-  }, [loginLinkScale]);
-
-  const handleLoginLinkPressOut = useCallback(() => {
-    loginLinkScale.value = withSpring(1, { damping: 12, stiffness: 180 });
-  }, [loginLinkScale]);
-
-  const handleCreateAccountPress = useCallback(() => {
-    navigation.navigate('Home');
-  }, [navigation]);
+    try {
+      await register({
+        fullName: trimmedFullName,
+        email: trimmedEmail,
+        password,
+      });
+      navigation.navigate('Home');
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to create account. Please try again.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [fullName, email, password, confirmPassword, register, navigation]);
 
   const handleLoginLinkPress = useCallback(() => {
     navigation.navigate('Login');
   }, [navigation]);
-
-  const togglePasswordVisibility = useCallback(() => {
-    setIsPasswordVisible((previous) => !previous);
-  }, []);
-
-  const toggleConfirmPasswordVisibility = useCallback(() => {
-    setIsConfirmPasswordVisible((previous) => !previous);
-  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -119,111 +88,80 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View style={[styles.container, containerAnimatedStyle]}>
-          <View style={styles.header}>
-            <Text style={styles.logoText}>SERPENTIS</Text>
-            <Text style={styles.welcomeText}>Create Account</Text>
-            <Text style={styles.subtitleText}>
-              Join the next generation of cybersecurity defense.
-            </Text>
-          </View>
+        <AuthHeader
+          title="Create Account"
+          subtitle="Join the next generation of cybersecurity defense."
+        />
 
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="John Doe"
-                placeholderTextColor={COLORS.placeholder}
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
+        <View style={styles.card}>
+          <AuthField
+            label="Full Name"
+            placeholder="John Doe"
+            value={fullName}
+            onChangeText={setFullName}
+            autoCapitalize="words"
+            autoCorrect={false}
+            editable={!isSubmitting}
+          />
+
+          <AuthField
+            label="Email"
+            placeholder="you@example.com"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            editable={!isSubmitting}
+          />
+
+          <AuthField
+            label="Password"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            isPassword
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isSubmitting}
+          />
+
+          <AuthField
+            label="Confirm Password"
+            placeholder="••••••••"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            isPassword
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isSubmitting}
+          />
+
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{error}</Text>
             </View>
+          ) : null}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="you@example.com"
-                placeholderTextColor={COLORS.placeholder}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.passwordRow}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="••••••••"
-                  placeholderTextColor={COLORS.placeholder}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!isPasswordVisible}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <Pressable onPress={togglePasswordVisibility} hitSlop={8}>
-                  <Text style={styles.toggleVisibilityText}>
-                    {isPasswordVisible ? 'Hide' : 'Show'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Confirm Password</Text>
-              <View style={styles.passwordRow}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="••••••••"
-                  placeholderTextColor={COLORS.placeholder}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!isConfirmPasswordVisible}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <Pressable onPress={toggleConfirmPasswordVisibility} hitSlop={8}>
-                  <Text style={styles.toggleVisibilityText}>
-                    {isConfirmPasswordVisible ? 'Hide' : 'Show'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-
-          <Animated.View style={createAccountAnimatedStyle}>
-            <Pressable
-              style={styles.createAccountButton}
-              onPress={handleCreateAccountPress}
-              onPressIn={handleCreateAccountPressIn}
-              onPressOut={handleCreateAccountPressOut}
-            >
-              <Text style={styles.createAccountButtonText}>Create Account</Text>
-            </Pressable>
-          </Animated.View>
+          <AuthButton
+            label="Create Account"
+            onPress={handleCreateAccountPress}
+            loading={isSubmitting}
+            style={styles.createAccountButton}
+          />
 
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>Already have an account?</Text>
-            <Animated.View style={loginLinkAnimatedStyle}>
-              <Pressable
-                onPress={handleLoginLinkPress}
-                onPressIn={handleLoginLinkPressIn}
-                onPressOut={handleLoginLinkPressOut}
-                hitSlop={8}
-              >
-                <Text style={styles.loginLinkText}>Log In</Text>
-              </Pressable>
-            </Animated.View>
+            <Text
+              style={styles.loginLinkText}
+              onPress={isSubmitting ? undefined : handleLoginLinkPress}
+              suppressHighlighting
+            >
+              {' '}
+              Log In
+            </Text>
           </View>
-        </Animated.View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -232,111 +170,48 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: authTheme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingHorizontal: authTheme.spacing.xxl,
+    paddingVertical: authTheme.spacing.xxxl,
   },
-  container: {
-    width: '100%',
-  },
-  header: {
-    marginBottom: 32,
-  },
-  logoText: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 4,
-    color: COLORS.accent,
-    marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginBottom: 8,
-  },
-  subtitleText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 18,
-  },
-  form: {
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  textInput: {
-    backgroundColor: COLORS.surface,
+  card: {
+    backgroundColor: authTheme.colors.glass,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: COLORS.textPrimary,
+    borderColor: authTheme.colors.glassBorder,
+    borderRadius: authTheme.radius.xl,
+    padding: authTheme.spacing.xl,
   },
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+  errorBanner: {
+    backgroundColor: authTheme.colors.errorMuted,
+    borderRadius: authTheme.radius.sm,
+    paddingHorizontal: authTheme.spacing.md,
+    paddingVertical: authTheme.spacing.sm,
+    marginBottom: authTheme.spacing.lg,
   },
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: COLORS.textPrimary,
-  },
-  toggleVisibilityText: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: COLORS.accent,
-    paddingLeft: 12,
+  errorBannerText: {
+    fontSize: authTheme.typography.fontSizes.xs,
+    color: authTheme.colors.error,
   },
   createAccountButton: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  createAccountButtonText: {
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 2,
-    color: COLORS.background,
+    marginBottom: authTheme.spacing.lg,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexWrap: 'wrap',
   },
   footerText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
+    fontSize: authTheme.typography.fontSizes.sm,
+    color: authTheme.colors.textSecondary,
   },
   loginLinkText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.accent,
-    marginLeft: 6,
+    fontSize: authTheme.typography.fontSizes.sm,
+    fontWeight: authTheme.typography.fontWeights.bold,
+    color: authTheme.colors.accent,
   },
 });

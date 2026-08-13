@@ -15,14 +15,7 @@ import Animated, {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-
-const COLORS = {
-  background: '#050505',
-  primaryGlow: '#00FFB2',
-  secondaryText: '#7CFFDB',
-  subtitleText: '#8A9A97',
-  dotIdle: '#0F3D33',
-};
+import { authTheme } from '../theme/authTheme';
 
 export default function SplashScreen() {
   const navigation =
@@ -32,6 +25,7 @@ export default function SplashScreen() {
   const titleTranslateY = useSharedValue(16);
   const glowIntensity = useSharedValue(0.3);
   const subtitleOpacity = useSharedValue(0);
+  const frameOpacity = useSharedValue(0);
 
   const dotOpacity0 = useSharedValue(0.3);
   const dotOpacity1 = useSharedValue(0.3);
@@ -51,6 +45,11 @@ export default function SplashScreen() {
       duration: 900,
       easing: Easing.out(Easing.exp),
     });
+
+    frameOpacity.value = withDelay(
+      150,
+      withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) }),
+    );
 
     glowIntensity.value = withDelay(
       300,
@@ -109,6 +108,7 @@ export default function SplashScreen() {
     titleTranslateY,
     glowIntensity,
     subtitleOpacity,
+    frameOpacity,
     dotOpacities,
   ]);
 
@@ -119,6 +119,10 @@ export default function SplashScreen() {
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
     opacity: glowIntensity.value,
+  }));
+
+  const frameAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: frameOpacity.value,
   }));
 
   const subtitleAnimatedStyle = useAnimatedStyle(() => ({
@@ -141,10 +145,23 @@ export default function SplashScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={authTheme.colors.background}
+      />
 
       <View style={styles.centerContent}>
         <View style={styles.titleWrapper}>
+          <Animated.View
+            style={[styles.cornerBrackets, frameAnimatedStyle]}
+            pointerEvents="none"
+          >
+            <View style={[styles.bracket, styles.bracketTopLeft]} />
+            <View style={[styles.bracket, styles.bracketTopRight]} />
+            <View style={[styles.bracket, styles.bracketBottomLeft]} />
+            <View style={[styles.bracket, styles.bracketBottomRight]} />
+          </Animated.View>
+
           <Animated.View style={[styles.glowLayer, glowAnimatedStyle]}>
             <Text style={styles.titleGlowText}>SERPENTIS</Text>
           </Animated.View>
@@ -161,7 +178,7 @@ export default function SplashScreen() {
 
       <View style={styles.loaderContainer}>
         <View style={styles.dotsRow}>
-          {[0, 1, 2].map(index => (
+          {[0, 1, 2].map((index) => (
             <Animated.View
               key={`splash-dot-${index}`}
               style={[
@@ -177,10 +194,14 @@ export default function SplashScreen() {
   );
 }
 
+const BRACKET_SIZE = 18;
+const BRACKET_THICKNESS = 2;
+const BRACKET_INSET = -28;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: authTheme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -192,6 +213,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cornerBrackets: {
+    position: 'absolute',
+    top: BRACKET_INSET,
+    bottom: BRACKET_INSET,
+    left: BRACKET_INSET,
+    right: BRACKET_INSET,
+  },
+  bracket: {
+    position: 'absolute',
+    width: BRACKET_SIZE,
+    height: BRACKET_SIZE,
+    borderColor: authTheme.colors.accent,
+  },
+  bracketTopLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: BRACKET_THICKNESS,
+    borderLeftWidth: BRACKET_THICKNESS,
+  },
+  bracketTopRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: BRACKET_THICKNESS,
+    borderRightWidth: BRACKET_THICKNESS,
+  },
+  bracketBottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: BRACKET_THICKNESS,
+    borderLeftWidth: BRACKET_THICKNESS,
+  },
+  bracketBottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: BRACKET_THICKNESS,
+    borderRightWidth: BRACKET_THICKNESS,
+  },
   glowLayer: {
     position: 'absolute',
   },
@@ -199,8 +257,8 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: '800',
     letterSpacing: 6,
-    color: COLORS.primaryGlow,
-    textShadowColor: COLORS.primaryGlow,
+    color: authTheme.colors.accent,
+    textShadowColor: authTheme.colors.accent,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 24,
   },
@@ -208,8 +266,8 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: '800',
     letterSpacing: 6,
-    color: COLORS.secondaryText,
-    textShadowColor: COLORS.primaryGlow,
+    color: authTheme.colors.textPrimary,
+    textShadowColor: authTheme.colors.accent,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
@@ -218,7 +276,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     letterSpacing: 2,
-    color: COLORS.subtitleText,
+    color: authTheme.colors.textSecondary,
     textTransform: 'uppercase',
   },
   loaderContainer: {
@@ -234,7 +292,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.primaryGlow,
+    backgroundColor: authTheme.colors.accent,
   },
   dotSpacing: {
     marginRight: 10,

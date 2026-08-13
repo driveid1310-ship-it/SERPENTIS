@@ -33,10 +33,27 @@ router.get("/:id", getServiceById);
 // Admin Routes
 // ===============================
 
-router.post("/", authMiddleware, createService);
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
-router.put("/:id", authMiddleware, updateService);
+router.post(
+  "/",
+  authMiddleware,
+  authorizeRoles("admin", "moderator"),
+  createService,
+);
 
-router.delete("/:id", authMiddleware, deleteService);
+router.put(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("admin", "moderator"),
+  updateService,
+);
+
+router.delete(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("admin", "moderator"),
+  deleteService,
+);
 
 export default router;

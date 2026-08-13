@@ -875,23 +875,23 @@ export async function updateReportStatus(
 ): Promise<void> {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const status = req.body?.status;
 
-    if (!isValidObjectId(id)) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid report ID.',
-      });
-      return;
-    }
+  if (typeof status !== "string") {
+  res.status(400).json({
+    success: false,
+    message: "Status is required.",
+  });
+  return;
+  }
 
-    if (!status || !VALID_STATUSES.includes(status as ReportStatus)) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid report status.',
-      });
-      return;
-    }
+  if (!VALID_STATUSES.includes(status as ReportStatus)) {
+  res.status(400).json({
+    success: false,
+    message: "Invalid report status.",
+  });
+  return;
+  }
 
     const report = await Report.findById(id);
 
