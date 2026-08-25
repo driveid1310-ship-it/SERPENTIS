@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 import Screen from '../components/Screen/Screen';
 import Header from '../components/Header/Header';
 import AppCard from '../components/Card/AppCard';
@@ -8,14 +9,33 @@ import AppButton from '../components/Button/AppButton';
 import AppInput from '../components/Input/AppInput';
 import { theme } from '../theme';
 
-type SeverityLevel = 'Low' | 'Medium' | 'High';
+type ReportIssueScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'ReportIssue'
+>;
 
-interface CategoryConfig {
-  key: string;
+interface ReportIssueScreenProps {
+  navigation: ReportIssueScreenNavigationProp;
+}
+
+type ReportCategory =
+  | 'pothole'
+  | 'garbage'
+  | 'water-leakage'
+  | 'streetlight'
+  | 'traffic'
+  | 'pollution'
+  | 'stray-animals'
+  | 'other';
+
+type ReportSeverity = 'low' | 'medium' | 'high';
+
+interface CategoryOption {
+  key: ReportCategory;
   label: string;
 }
 
-const CATEGORIES: CategoryConfig[] = [
+const CATEGORY_OPTIONS: CategoryOption[] = [
   { key: 'pothole', label: 'Pothole' },
   { key: 'garbage', label: 'Garbage' },
   { key: 'water-leakage', label: 'Water Leakage' },
@@ -26,102 +46,202 @@ const CATEGORIES: CategoryConfig[] = [
   { key: 'other', label: 'Other' },
 ];
 
-const SEVERITY_LEVELS: SeverityLevel[] = ['Low', 'Medium', 'High'];
+const SEVERITY_OPTIONS: { key: ReportSeverity; label: string }[] = [
+  { key: 'low', label: 'Low' },
+  { key: 'medium', label: 'Medium' },
+  { key: 'high', label: 'High' },
+];
 
-export default function ReportIssueScreen() {
-  const navigation = useNavigation();
+interface FormErrors {
+  category?: string;
+  severity?: string;
+  description?: string;
+}
 
-  const [selectedCategoryKey, setSelectedCategoryKey] = useState<
-    string | null
-  >(null);
+const MIN_DESCRIPTION_LENGTH = 10;
+// Purely cosmetic — demonstrates the button's loading state. No network
+// call happens; nothing is submitted anywhere.
+const SUBMIT_LOADING_DEMO_MS = 500;
+
+export default function ReportIssueScreen({
+  navigation,
+}: ReportIssueScreenProps) {
+  const [selectedCategory, setSelectedCategory] =
+    useState<ReportCategory | null>(null);
   const [selectedSeverity, setSelectedSeverity] =
-    useState<SeverityLevel | null>(null);
+    useState<ReportSeverity | null>(null);
   const [description, setDescription] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [selectedAddress] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  // Photo and location are UI-only in this build — no image-picker or
+  // geolocation package is installed. These flags just control whether
+  // the honest "not connected yet" notice is shown after the user taps
+  // the related action.
+  const [photoNoticeVisible, setPhotoNoticeVisible] = useState(false);
+  const [locationNoticeVisible, setLocationNoticeVisible] = useState(false);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isNotConnectedNoticeVisible, setIsNotConnectedNoticeVisible] =
+    useState(false);
+
+  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleBackPress = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
-  const handleCameraPress = useCallback(() => {
-    // Static UI only — camera integration not implemented in this sprint.
+  const handlePhotoActionPress = useCallback(() => {
+    setPhotoNoticeVisible(true);
   }, []);
 
-  const handleGalleryPress = useCallback(() => {
-    // Static UI only — gallery integration not implemented in this sprint.
+  const handleUseCurrentLocationPress = useCallback(() => {
+    setLocationNoticeVisible(true);
   }, []);
 
-  const handleCurrentLocationPress = useCallback(() => {
-    // Static UI only — location integration not implemented in this sprint.
+  const handleCategoryPress = useCallback((key: ReportCategory) => {
+    setSelectedCategory((previous) => (previous === key ? null : key));
+    setErrors((previous) => ({ ...previous, category: undefined }));
   }, []);
 
-  const handleCategoryPress = useCallback((key: string) => {
-    setSelectedCategoryKey((previous) => (previous === key ? null : key));
+  const handleSeverityPress = useCallback((key: ReportSeverity) => {
+    setSelectedSeverity(key);
+    setErrors((previous) => ({ ...previous, severity: undefined }));
   }, []);
 
-  const handleSeverityPress = useCallback((level: SeverityLevel) => {
-    setSelectedSeverity((previous) => (previous === level ? null : level));
+  const handleDescriptionChange = useCallback((value: string) => {
+    setDescription(value);
+    setErrors((previous) => ({ ...previous, description: undefined }));
   }, []);
 
   const handleAnonymousToggle = useCallback(() => {
     setIsAnonymous((previous) => !previous);
   }, []);
 
+  const validateForm = useCallback((): boolean => {
+    const nextErrors: FormErrors = {};
+
+    if (!selectedCategory) {
+      nextErrors.category = 'Please select a category for this issue.';
+    }
+
+    if (!selectedSeverity) {
+      nextErrors.severity = 'Please select a severity level.';
+    }
+
+    if (description.trim().length < MIN_DESCRIPTION_LENGTH) {
+      nextErrors.description = `Please describe the issue in at least ${MIN_DESCRIPTION_LENGTH} characters.`;
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }, [selectedCategory, selectedSeverity, description]);
+
   const handleSubmitPress = useCallback(() => {
-    // Static UI only — submission wiring not implemented in this sprint.
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsNotConnectedNoticeVisible(false);
+    setIsSubmitting(true);
+
+    submitTimeoutRef.current = setTimeout(() => {
+      setIsSubmitting(false);
+      setIsNotConnectedNoticeVisible(true);
+    }, SUBMIT_LOADING_DEMO_MS);
+  }, [validateForm]);
+
+  const handleEditReportPress = useCallback(() => {
+    setIsNotConnectedNoticeVisible(false);
   }, []);
 
   return (
     <Screen scrollable keyboardAvoiding>
-      <Header title="Report an Issue" onBackPress={handleBackPress} />
+      <Header
+        title="Report an Issue"
+        subtitle="Help improve your community — report a civic problem."
+        onBackPress={handleBackPress}
+      />
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Photo</Text>
+        <Text style={styles.sectionTitle}>Evidence / Photo</Text>
         <AppCard elevation="sm">
-          <View style={styles.photoPlaceholder}>
-            <Text style={styles.photoPlaceholderText}>No photo selected</Text>
-          </View>
-          <View style={styles.photoActionsRow}>
+          <Pressable
+            style={styles.photoPlaceholder}
+            onPress={handlePhotoActionPress}
+          >
+            <Text style={styles.photoPlaceholderIcon}>{'\uD83D\uDCF7'}</Text>
+            <Text style={styles.photoPlaceholderText}>
+              Add a photo of the issue
+            </Text>
+            <Text style={styles.photoPlaceholderSubtext}>
+              Clear photos help your report get resolved faster
+            </Text>
+          </Pressable>
+          <View style={styles.rowButtons}>
             <AppButton
               label="Camera"
-              onPress={handleCameraPress}
+              onPress={handlePhotoActionPress}
               variant="outline"
-              style={styles.photoActionButton}
+              style={styles.rowButton}
             />
             <AppButton
               label="Gallery"
-              onPress={handleGalleryPress}
+              onPress={handlePhotoActionPress}
               variant="secondary"
-              style={styles.photoActionButton}
+              style={styles.rowButton}
             />
           </View>
+          {photoNoticeVisible ? (
+            <Text style={styles.noticeText}>
+              Photo capture isn&apos;t connected yet in this build.
+            </Text>
+          ) : null}
         </AppCard>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Location</Text>
         <AppCard elevation="sm">
-          <AppButton
-            label="Use Current Location"
-            onPress={handleCurrentLocationPress}
-            variant="outline"
-            fullWidth
-          />
-          <View style={styles.addressBox}>
-            <Text style={styles.addressLabel}>Selected Address</Text>
-            <Text style={styles.addressValue} numberOfLines={2}>
-              {selectedAddress ?? 'No location selected yet'}
+          <View style={styles.locationRow}>
+            <Text style={styles.locationIcon}>{'\uD83D\uDCCD'}</Text>
+            <Text style={styles.locationPlaceholder}>
+              No location attached
             </Text>
           </View>
+          <Text style={styles.noticeText}>
+            Location services will be connected in a future update.
+          </Text>
+          {locationNoticeVisible ? (
+            <Text style={styles.noticeTextConfirm}>
+              GPS is not connected yet — this report will be submitted
+              without a precise location.
+            </Text>
+          ) : null}
+          <AppButton
+            label="Use Current Location"
+            onPress={handleUseCurrentLocationPress}
+            variant="outline"
+          />
         </AppCard>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Category</Text>
+        <Text style={styles.sectionTitle}>Issue Category</Text>
+        {errors.category ? (
+          <Text style={styles.fieldErrorText}>{errors.category}</Text>
+        ) : null}
         <View style={styles.categoryGrid}>
-          {CATEGORIES.map((category) => {
-            const isSelected = selectedCategoryKey === category.key;
+          {CATEGORY_OPTIONS.map((category) => {
+            const isSelected = selectedCategory === category.key;
             return (
               <View key={category.key} style={styles.categoryItem}>
                 <Pressable
@@ -149,13 +269,16 @@ export default function ReportIssueScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Severity</Text>
+        {errors.severity ? (
+          <Text style={styles.fieldErrorText}>{errors.severity}</Text>
+        ) : null}
         <View style={styles.severityRow}>
-          {SEVERITY_LEVELS.map((level) => {
-            const isSelected = selectedSeverity === level;
+          {SEVERITY_OPTIONS.map((option) => {
+            const isSelected = selectedSeverity === option.key;
             return (
               <Pressable
-                key={level}
-                onPress={() => handleSeverityPress(level)}
+                key={option.key}
+                onPress={() => handleSeverityPress(option.key)}
                 style={[
                   styles.severityChip,
                   isSelected && styles.severityChipSelected,
@@ -167,7 +290,7 @@ export default function ReportIssueScreen() {
                     isSelected && styles.severityChipTextSelected,
                   ]}
                 >
-                  {level}
+                  {option.label}
                 </Text>
               </Pressable>
             );
@@ -178,24 +301,22 @@ export default function ReportIssueScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Description</Text>
         <AppInput
-          placeholder="Describe the issue in detail..."
+          placeholder="Describe the issue..."
           value={description}
-          onChangeText={setDescription}
+          onChangeText={handleDescriptionChange}
           multiline
           numberOfLines={5}
           textAlignVertical="top"
+          errorMessage={errors.description}
         />
       </View>
 
       <View style={styles.section}>
-        <Pressable
-          style={styles.anonymousRow}
-          onPress={handleAnonymousToggle}
-        >
-          <View>
-            <Text style={styles.anonymousLabel}>Report Anonymously</Text>
+        <Pressable style={styles.anonymousRow} onPress={handleAnonymousToggle}>
+          <View style={styles.anonymousTextContainer}>
+            <Text style={styles.anonymousLabel}>Submit anonymously</Text>
             <Text style={styles.anonymousDescription}>
-              Your identity will not be shared with this report.
+              Your name will not be shown alongside this report.
             </Text>
           </View>
           <View
@@ -214,12 +335,33 @@ export default function ReportIssueScreen() {
         </Pressable>
       </View>
 
+      {isNotConnectedNoticeVisible ? (
+        <View style={styles.section}>
+          <AppCard elevation="sm" style={styles.notConnectedCard}>
+            <Text style={styles.notConnectedTitle}>
+              Submission not connected yet
+            </Text>
+            <Text style={styles.notConnectedMessage}>
+              This screen is UI-only in the current build. Your report was
+              not sent — backend submission will be wired up in a future
+              update.
+            </Text>
+            <AppButton
+              label="Edit Report"
+              onPress={handleEditReportPress}
+              variant="outline"
+            />
+          </AppCard>
+        </View>
+      ) : null}
+
       <View style={[styles.section, styles.lastSection]}>
         <AppButton
-          label="Submit Report"
+          label="REPORT ISSUE"
           onPress={handleSubmitPress}
           variant="primary"
-          fullWidth
+          loading={isSubmitting}
+          disabled={isSubmitting}
         />
       </View>
     </Screen>
@@ -239,41 +381,71 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.md,
   },
+  fieldErrorText: {
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.danger,
+    marginBottom: theme.spacing.sm,
+  },
+  noticeText: {
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.md,
+    lineHeight: 16,
+  },
+  noticeTextConfirm: {
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.warning,
+    marginBottom: theme.spacing.md,
+    lineHeight: 16,
+  },
   photoPlaceholder: {
-    height: 160,
+    minHeight: 140,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    borderStyle: 'dashed',
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.lg,
+  },
+  photoPlaceholderIcon: {
+    fontSize: 30,
+    marginBottom: theme.spacing.sm,
   },
   photoPlaceholderText: {
-    fontSize: theme.typography.fontSizes.sm,
-    color: theme.colors.textSecondary,
-  },
-  photoActionsRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  photoActionButton: {
-    flex: 1,
-  },
-  addressBox: {
-    marginTop: theme.spacing.md,
-  },
-  addressLabel: {
-    fontSize: theme.typography.fontSizes.xs,
+    fontSize: theme.typography.fontSizes.md,
     fontWeight: theme.typography.fontWeights.semibold,
-    letterSpacing: 1,
-    color: theme.colors.textSecondary,
-    textTransform: 'uppercase',
+    color: theme.colors.textPrimary,
     marginBottom: theme.spacing.xs,
   },
-  addressValue: {
+  photoPlaceholderSubtext: {
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  rowButtons: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  rowButton: {
+    flex: 1,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  locationIcon: {
+    fontSize: 20,
+    marginRight: theme.spacing.sm,
+  },
+  locationPlaceholder: {
     fontSize: theme.typography.fontSizes.sm,
-    color: theme.colors.textPrimary,
+    color: theme.colors.textSecondary,
   },
   categoryGrid: {
     flexDirection: 'row',
@@ -296,7 +468,7 @@ const styles = StyleSheet.create({
   },
   categoryChipSelected: {
     borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.primaryLight,
   },
   categoryChipText: {
     fontSize: theme.typography.fontSizes.sm,
@@ -322,7 +494,7 @@ const styles = StyleSheet.create({
   },
   severityChipSelected: {
     borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.primaryLight,
   },
   severityChipText: {
     fontSize: theme.typography.fontSizes.sm,
@@ -331,9 +503,6 @@ const styles = StyleSheet.create({
   },
   severityChipTextSelected: {
     color: theme.colors.accent,
-  },
-  descriptionInput: {
-    minHeight: 120,
   },
   anonymousRow: {
     flexDirection: 'row',
@@ -346,6 +515,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
   },
+  anonymousTextContainer: {
+    flex: 1,
+    marginRight: theme.spacing.md,
+  },
   anonymousLabel: {
     fontSize: theme.typography.fontSizes.sm,
     fontWeight: theme.typography.fontWeights.semibold,
@@ -355,7 +528,6 @@ const styles = StyleSheet.create({
   anonymousDescription: {
     fontSize: theme.typography.fontSizes.xs,
     color: theme.colors.textSecondary,
-    maxWidth: 220,
   },
   toggleTrack: {
     width: 44,
@@ -372,11 +544,25 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: theme.colors.textPrimary,
+    backgroundColor: theme.colors.surface,
     alignSelf: 'flex-start',
   },
   toggleThumbActive: {
     alignSelf: 'flex-end',
-    backgroundColor: theme.colors.background,
+  },
+  notConnectedCard: {
+    borderColor: theme.colors.warning,
+  },
+  notConnectedTitle: {
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.xs,
+  },
+  notConnectedMessage: {
+    fontSize: theme.typography.fontSizes.sm,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: theme.spacing.md,
   },
 });

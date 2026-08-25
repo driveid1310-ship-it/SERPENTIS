@@ -4,25 +4,25 @@ export const authTheme = {
   colors: {
     ...Colors,
 
-    background: '#050505',
-    surface: '#0E0E10',
-    surfaceElevated: '#16181B',
+    background: Colors.background,
+    surface: Colors.surface,
+    surfaceElevated: Colors.surface,
 
-    glass: 'rgba(255,255,255,0.04)',
-    glassBorder: 'rgba(255,255,255,0.08)',
+    glass: Colors.surface,
+    glassBorder: Colors.border,
 
-    border: '#1F2623',
+    border: Colors.border,
 
-    accent: '#00E5A8',
-    accentMuted: 'rgba(0,229,168,0.12)',
+    accent: Colors.primary,
+    accentMuted: Colors.primaryLight,
 
-    textPrimary: '#FFFFFF',
-    textSecondary: '#A0A0A0',
+    textPrimary: Colors.textPrimary,
+    textSecondary: Colors.textSecondary,
 
-    placeholder: '#5C6360',
+    placeholder: Colors.placeholder,
 
-    error: '#FF5252',
-    errorMuted: 'rgba(255,82,82,0.12)',
+    error: Colors.error,
+    errorMuted: '#FBEAEA',
   },
 
   spacing: Spacing,

@@ -5,6 +5,12 @@ import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import HomeScreen from '../screens/HomeScreen';
+import ReportIssueScreen from '../screens/ReportIssueScreen';
+import PlacesScreen from '../screens/PlacesScreen';
+import SosScreen from '../screens/SosScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import HeritageScreen from '../screens/HeritageScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import OtpVerificationScreen from '../screens/OtpVerificationScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
@@ -15,6 +21,12 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   Home: undefined;
+  ReportIssue: undefined;
+  Places: undefined;
+  SOS: undefined;
+  Notifications: undefined;
+  Heritage: undefined;
+  Profile: undefined;
   ForgotPassword: undefined;
 
   OtpVerification: {
@@ -56,6 +68,36 @@ export default function AppNavigator() {
       <Stack.Screen
         name="Home"
         component={HomeScreen}
+      />
+
+      <Stack.Screen
+        name="ReportIssue"
+        component={ReportIssueScreen}
+      />
+
+      <Stack.Screen
+        name="Places"
+        component={PlacesScreen}
+      />
+
+      <Stack.Screen
+        name="SOS"
+        component={SosScreen}
+      />
+
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+      />
+
+      <Stack.Screen
+        name="Heritage"
+        component={HeritageScreen}
+      />
+
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
       />
 
       <Stack.Screen

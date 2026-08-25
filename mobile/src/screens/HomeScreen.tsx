@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import {
   Pressable,
   ScrollView,
@@ -66,12 +66,7 @@ const trendingIssues = [
 export default function HomeScreen({
   navigation,
 }: HomeScreenProps) {
-  const { user, logout } = useAuth();
-
-  const handleLogout = useCallback(async () => {
-    await logout();
-    navigation.replace('Login');
-  }, [logout, navigation]);
+  const { user } = useAuth();
 
   const firstName = user?.fullName?.split(' ')[0] || 'Citizen';
 
@@ -91,19 +86,33 @@ export default function HomeScreen({
             </Text>
           </View>
 
-          <Pressable
-            onPress={handleLogout}
-            style={({ pressed }) => [
-              styles.profileButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Log out"
-          >
-            <Text style={styles.profileInitial}>
-              {firstName.charAt(0).toUpperCase()}
-            </Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => navigation.navigate('Notifications')}
+              style={({ pressed }) => [
+                styles.notificationButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+            >
+              <Text style={styles.notificationIcon}>{'\uD83D\uDD14'}</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigation.navigate('Profile')}
+              style={({ pressed }) => [
+                styles.profileButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Profile"
+            >
+              <Text style={styles.profileInitial}>
+                {firstName.charAt(0).toUpperCase()}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Trust Score */}
@@ -146,7 +155,13 @@ export default function HomeScreen({
               key={action.title}
               onPress={() => {
                 if (action.title === 'Report Issue') {
-                  navigation.navigate('Home');
+                  navigation.navigate('ReportIssue');
+                }
+                if (action.title === 'Places') {
+                  navigation.navigate('Places');
+                }
+                if (action.title === 'SOS') {
+                  navigation.navigate('SOS');
                 }
               }}
               style={({ pressed }) => [
@@ -244,6 +259,7 @@ export default function HomeScreen({
           </Text>
 
           <Pressable
+            onPress={() => navigation.navigate('Heritage')}
             style={({ pressed }) => [
               styles.heritageButton,
               pressed && styles.pressed,
@@ -296,6 +312,27 @@ const styles = StyleSheet.create({
     marginTop: authTheme.spacing.xs,
     fontSize: authTheme.typography.fontSizes.sm,
     color: authTheme.colors.textSecondary,
+  },
+
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: authTheme.spacing.sm,
+  },
+
+  notificationButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: authTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: authTheme.colors.border,
+  },
+
+  notificationIcon: {
+    fontSize: authTheme.typography.fontSizes.md,
   },
 
   profileButton: {

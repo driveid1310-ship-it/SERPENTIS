@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StatusBar, Text, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,11 +15,13 @@ import Animated, {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { useAuth } from '../hooks/useAuth';
 import { authTheme } from '../theme/authTheme';
 
 export default function SplashScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { isAuthenticated, loading } = useAuth();
 
   const titleOpacity = useSharedValue(0);
   const titleTranslateY = useSharedValue(16);
@@ -34,6 +36,8 @@ export default function SplashScreen() {
     () => [dotOpacity0, dotOpacity1, dotOpacity2],
     [dotOpacity0, dotOpacity1, dotOpacity2],
   );
+
+  const [minDurationElapsed, setMinDurationElapsed] = useState(false);
 
   useEffect(() => {
     titleOpacity.value = withTiming(1, {
@@ -98,12 +102,11 @@ export default function SplashScreen() {
     });
 
     const timer = setTimeout(() => {
-      navigation.replace('Login');
+      setMinDurationElapsed(true);
     }, 2500);
 
     return () => clearTimeout(timer);
   }, [
-    navigation,
     titleOpacity,
     titleTranslateY,
     glowIntensity,
@@ -111,6 +114,19 @@ export default function SplashScreen() {
     frameOpacity,
     dotOpacities,
   ]);
+
+  // Wait for the animation's minimum duration AND the real session
+  // restoration (AuthContext validating any stored token) to finish
+  // before deciding where to go. This avoids forcing an already-logged-in
+  // user back to Login on every launch, and avoids racing a slow /auth/me
+  // call by navigating before we actually know the auth state.
+  useEffect(() => {
+    if (!minDurationElapsed || loading) {
+      return;
+    }
+
+    navigation.replace(isAuthenticated ? 'Home' : 'Login');
+  }, [minDurationElapsed, loading, isAuthenticated, navigation]);
 
   const titleAnimatedStyle = useAnimatedStyle(() => ({
     opacity: titleOpacity.value,
@@ -146,7 +162,7 @@ export default function SplashScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="light-content"
+        barStyle="dark-content"
         backgroundColor={authTheme.colors.background}
       />
 
@@ -172,7 +188,7 @@ export default function SplashScreen() {
         </View>
 
         <Animated.Text style={[styles.subtitleText, subtitleAnimatedStyle]}>
-          AI Powered Cybersecurity Platform
+          Community-Powered Civic Reporting
         </Animated.Text>
       </View>
 

@@ -1,26 +1,28 @@
 const Colors = {
-  primary: '#10B981',
-  primaryDark: '#059669',
+  primary: '#176B5B',
+  primaryDark: '#115044',
+  primaryLight: '#E6F3EF',
 
-  secondary: '#14B8A6',
+  secondary: '#C89B3C',
+  secondaryLight: '#F7EED8',
 
-  accent: '#3B82F6',
+  accent: '#176B5B',
 
-  background: '#0B0F14',
-  surface: '#161B22',
-  surfaceLight: '#1E2630',
+  background: '#F7F5F0',
+  surface: '#FFFFFF',
+  surfaceLight: '#F0EEE8',
 
-  border: '#27313A',
+  border: '#E2DED5',
 
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  placeholder: '#94A3B8',
+  textPrimary: '#1D2925',
+  textSecondary: '#68736F',
+  textMuted: '#8A938F',
+  placeholder: '#9AA29E',
 
-  success: '#22C55E',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  danger: '#EF4444',
+  success: '#2E8B57',
+  warning: '#D99022',
+  error: '#C94A4A',
+  danger: '#C94A4A',
   info: '#3B82F6',
 
   white: '#FFFFFF',

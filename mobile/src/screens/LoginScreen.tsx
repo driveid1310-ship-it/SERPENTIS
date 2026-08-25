@@ -54,7 +54,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
     try {
       await login({ email: trimmedEmail, password });
-      navigation.navigate('Home');
+      navigation.replace('Home');
     } catch (err) {
       setError(
         err instanceof Error
@@ -82,7 +82,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       >
         <AuthHeader
           title="Welcome Back"
-          subtitle="Secure access to your cybersecurity workspace."
+          subtitle="Log in to report issues and stay connected to your community."
         />
 
         <View style={styles.card}>

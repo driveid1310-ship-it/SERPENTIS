@@ -62,7 +62,7 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
         email: trimmedEmail,
         password,
       });
-      navigation.navigate('Home');
+      navigation.replace('Home');
     } catch (err) {
       setError(
         err instanceof Error
@@ -90,7 +90,7 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
       >
         <AuthHeader
           title="Create Account"
-          subtitle="Join the next generation of cybersecurity defense."
+          subtitle="Join your community and start reporting local issues."
         />
 
         <View style={styles.card}>
