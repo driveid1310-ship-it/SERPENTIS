@@ -1,0 +1,23 @@
+@startuml
+skinparam monochrome true
+title Create Civic Report Sequence Diagram
+
+actor Citizen
+participant "Mobile UI" as App
+participant AuthContext
+participant "Report Controller" as API
+participant "Cloudinary API" as CDN
+database MongoDB
+
+Citizen -> App : Enter details & snap photo
+App -> AuthContext : Retrieve JWT
+App -> API : POST /api/reports (FormData + JWT)
+API -> API : Verify JWT Middleware
+API -> CDN : Stream Image Buffer
+CDN --> API : Secure Image URL
+API -> MongoDB : Report.create({data, location, imageURL})
+MongoDB --> API : Saved Document
+API -> MongoDB : User.update(trustScore++)
+API --> App : 201 Created
+App --> Citizen : Show Success & Navigate
+@enduml

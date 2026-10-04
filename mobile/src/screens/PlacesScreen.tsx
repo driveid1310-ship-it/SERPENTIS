@@ -1,12 +1,17 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import Screen from '../components/Screen/Screen';
 import Header from '../components/Header/Header';
 import AppCard from '../components/Card/AppCard';
 import AppButton from '../components/Button/AppButton';
-import { theme } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import { usePlaces } from '../hooks/usePlaces';
+import {
+  SERVICE_CATEGORY_OPTIONS,
+  ServiceCategory,
+} from '../types/publicService';
 
 type PlacesScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -17,105 +22,36 @@ interface PlacesScreenProps {
   navigation: PlacesScreenNavigationProp;
 }
 
-type PlaceCategory =
-  | 'hospital'
-  | 'police'
-  | 'fire-station'
-  | 'government-office'
-  | 'water-supply'
-  | 'electricity-office'
-  | 'waste-management'
-  | 'other';
-
-interface PlaceCategoryOption {
-  key: PlaceCategory;
-  label: string;
-}
-
-const PLACE_CATEGORY_OPTIONS: PlaceCategoryOption[] = [
-  { key: 'hospital', label: 'Hospital' },
-  { key: 'police', label: 'Police' },
-  { key: 'fire-station', label: 'Fire Station' },
-  { key: 'government-office', label: 'Govt. Office' },
-  { key: 'water-supply', label: 'Water Supply' },
-  { key: 'electricity-office', label: 'Electricity' },
-  { key: 'waste-management', label: 'Waste Mgmt.' },
-  { key: 'other', label: 'Other' },
-];
-
-interface StaticPlace {
-  id: string;
-  name: string;
-  category: PlaceCategory;
-  distanceLabel: string;
-  address: string;
-}
-
-// Local placeholder content only — mirrors the same convention already
-// used by HomeScreen's nearbyIssues/trendingIssues (static sample data,
-// not a live API result). There is no places backend to call yet, and
-// per this sprint's rules real GPS/distance is not calculated — the
-// "distance" shown here is illustrative sample text, not a measurement.
-const SAMPLE_PLACES: StaticPlace[] = [
-  {
-    id: 'sample-1',
-    name: 'City General Hospital',
-    category: 'hospital',
-    distanceLabel: 'Sample data — distance unavailable',
-    address: '4th Cross Street, Central District',
-  },
-  {
-    id: 'sample-2',
-    name: 'Central Police Station',
-    category: 'police',
-    distanceLabel: 'Sample data — distance unavailable',
-    address: 'Market Road, Central District',
-  },
-  {
-    id: 'sample-3',
-    name: 'Municipal Water Works Office',
-    category: 'water-supply',
-    distanceLabel: 'Sample data — distance unavailable',
-    address: 'Civic Centre, Sector 7',
-  },
-  {
-    id: 'sample-4',
-    name: 'District Fire Station',
-    category: 'fire-station',
-    distanceLabel: 'Sample data — distance unavailable',
-    address: 'Highway Road, Sector 3',
-  },
-];
-
-const CATEGORY_LABEL_BY_KEY: Record<PlaceCategory, string> =
-  PLACE_CATEGORY_OPTIONS.reduce(
+const CATEGORY_LABEL_BY_KEY: Record<ServiceCategory, string> =
+  SERVICE_CATEGORY_OPTIONS.reduce(
     (accumulator, option) => {
       accumulator[option.key] = option.label;
       return accumulator;
     },
-    {} as Record<PlaceCategory, string>,
+    {} as Record<ServiceCategory, string>,
   );
 
 export default function PlacesScreen({ navigation }: PlacesScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [selectedCategory, setSelectedCategory] =
-    useState<PlaceCategory | null>(null);
+    useState<ServiceCategory | null>(null);
   const [locationNoticeVisible, setLocationNoticeVisible] = useState(false);
+
+  const { status, services, errorMessage, refetch } =
+    usePlaces(selectedCategory);
 
   const handleBackPress = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
-  const handleCategoryPress = useCallback((key: PlaceCategory) => {
+  const handleCategoryPress = useCallback((key: ServiceCategory) => {
     setSelectedCategory((previous) => (previous === key ? null : key));
   }, []);
 
   const handleUseCurrentLocationPress = useCallback(() => {
     setLocationNoticeVisible(true);
   }, []);
-
-  const filteredPlaces = selectedCategory
-    ? SAMPLE_PLACES.filter((place) => place.category === selectedCategory)
-    : SAMPLE_PLACES;
 
   return (
     <Screen scrollable keyboardAvoiding={false}>
@@ -130,7 +66,7 @@ export default function PlacesScreen({ navigation }: PlacesScreenProps) {
           <View style={styles.locationRow}>
             <Text style={styles.locationIcon}>{'\uD83D\uDCCD'}</Text>
             <Text style={styles.locationPlaceholder}>
-              Showing sample places — location not attached
+              Showing all places — location not attached
             </Text>
           </View>
           <Text style={styles.noticeText}>
@@ -138,8 +74,8 @@ export default function PlacesScreen({ navigation }: PlacesScreenProps) {
           </Text>
           {locationNoticeVisible ? (
             <Text style={styles.noticeTextConfirm}>
-              GPS is not connected yet — results below are sample data, not
-              places near you.
+              GPS is not connected yet — results below are not sorted by
+              distance from you.
             </Text>
           ) : null}
           <AppButton
@@ -153,7 +89,7 @@ export default function PlacesScreen({ navigation }: PlacesScreenProps) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Filter by Category</Text>
         <View style={styles.categoryGrid}>
-          {PLACE_CATEGORY_OPTIONS.map((category) => {
+          {SERVICE_CATEGORY_OPTIONS.map((category) => {
             const isSelected = selectedCategory === category.key;
             return (
               <View key={category.key} style={styles.categoryItem}>
@@ -194,36 +130,84 @@ export default function PlacesScreen({ navigation }: PlacesScreenProps) {
           ) : null}
         </View>
 
-        {filteredPlaces.length === 0 ? (
+        {status === 'loading' ? (
+          <AppCard elevation="sm">
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={theme.colors.primary} />
+              <Text style={styles.loadingText}>Loading places...</Text>
+            </View>
+          </AppCard>
+        ) : null}
+
+        {status === 'error' ? (
+          <AppCard elevation="sm" style={styles.errorCard}>
+            <Text style={styles.errorTitle}>Couldn&apos;t load places</Text>
+            <Text style={styles.errorMessage}>
+              {errorMessage ?? 'Please try again.'}
+            </Text>
+            <AppButton
+              label="Retry"
+              onPress={refetch}
+              variant="outline"
+              style={styles.errorRetryButton}
+            />
+          </AppCard>
+        ) : null}
+
+        {status === 'empty' ? (
           <AppCard elevation="sm">
             <Text style={styles.emptyStateText}>
-              No sample places in this category yet.
+              No places found in this category.
             </Text>
           </AppCard>
-        ) : (
-          filteredPlaces.map((place) => (
-            <AppCard key={place.id} elevation="sm" style={styles.placeCard}>
-              <View style={styles.placeCardHeader}>
-                <Text style={styles.placeName} numberOfLines={1}>
-                  {place.name}
-                </Text>
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryBadgeText}>
-                    {CATEGORY_LABEL_BY_KEY[place.category]}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.placeAddress}>{place.address}</Text>
-              <Text style={styles.placeDistance}>{place.distanceLabel}</Text>
-            </AppCard>
-          ))
-        )}
+        ) : null}
+
+        {status === 'success'
+          ? services.map((service) => (
+              <Pressable
+                key={service._id}
+                onPress={() => {
+                  if (service.location?.coordinates) {
+                    navigation.navigate('Home', {
+                      screen: 'Map',
+                      params: {
+                        targetPlace: {
+                          id: service._id,
+                          name: service.name,
+                          category: CATEGORY_LABEL_BY_KEY[service.category],
+                          coordinates: service.location.coordinates,
+                          address: service.address,
+                        },
+                      }
+                    });
+                  }
+                }}
+              >
+                <AppCard
+                  elevation="sm"
+                  style={styles.placeCard}
+                >
+                  <View style={styles.placeCardHeader}>
+                    <Text style={styles.placeName} numberOfLines={1}>
+                      {service.name}
+                    </Text>
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.categoryBadgeText}>
+                        {CATEGORY_LABEL_BY_KEY[service.category]}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.placeAddress}>{service.address}</Text>
+                </AppCard>
+              </Pressable>
+            ))
+          : null}
       </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   section: {
     marginTop: theme.spacing.xl,
   },
@@ -233,7 +217,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.fontSizes.md,
     fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginBottom: theme.spacing.md,
   },
   noticeText: {
@@ -282,8 +266,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   categoryChipSelected: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primarySoft,
   },
   categoryChipText: {
     fontSize: theme.typography.fontSizes.sm,
@@ -291,7 +275,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   categoryChipTextSelected: {
-    color: theme.colors.accent,
+    color: theme.colors.primary,
   },
   resultsHeaderRow: {
     flexDirection: 'row',
@@ -301,8 +285,35 @@ const styles = StyleSheet.create({
   clearFilterText: {
     fontSize: theme.typography.fontSizes.xs,
     fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.accent,
+    color: theme.colors.primary,
     marginBottom: theme.spacing.md,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.fontSizes.sm,
+    color: theme.colors.textSecondary,
+  },
+  errorCard: {
+    borderColor: theme.colors.error,
+  },
+  errorTitle: {
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.error,
+    marginBottom: theme.spacing.xs,
+  },
+  errorMessage: {
+    fontSize: theme.typography.fontSizes.sm,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.md,
+  },
+  errorRetryButton: {
+    alignSelf: 'flex-start',
   },
   emptyStateText: {
     fontSize: theme.typography.fontSizes.sm,
@@ -322,7 +333,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: theme.typography.fontSizes.sm,
     fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginRight: theme.spacing.sm,
   },
   categoryBadge: {
@@ -340,10 +351,5 @@ const styles = StyleSheet.create({
   placeAddress: {
     fontSize: theme.typography.fontSizes.xs,
     color: theme.colors.textSecondary,
-    marginBottom: 2,
-  },
-  placeDistance: {
-    fontSize: theme.typography.fontSizes.xs,
-    color: theme.colors.placeholder,
   },
 });

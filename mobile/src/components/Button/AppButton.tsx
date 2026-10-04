@@ -15,7 +15,7 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
-import { theme } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 
 export type AppButtonVariant = 'primary' | 'secondary' | 'outline';
 
@@ -48,6 +48,35 @@ export default function AppButton({
   fullWidth = true,
   testID,
 }: AppButtonProps) {
+  
+  const { theme } = useTheme();
+  
+  const getStyles = () => StyleSheet.create({
+    base: {
+      borderRadius: theme.radius.md,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+    },
+    fullWidth: { width: '100%' },
+    primary: { backgroundColor: theme.colors.primary },
+    secondary: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+    outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.colors.primary },
+    disabled: { opacity: 0.5 },
+    content: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    iconLeft: { marginRight: theme.spacing.sm },
+    iconRight: { marginLeft: theme.spacing.sm },
+    labelBase: { fontSize: theme.typography.fontSizes.md, fontWeight: theme.typography.fontWeights.bold, letterSpacing: 1 },
+    labelPrimary: { color: theme.colors.background },
+    labelSecondary: { color: theme.colors.text },
+    labelOutline: { color: theme.colors.primary },
+    labelDisabled: { opacity: 0.9 },
+  });
+  const styles = getStyles();
+
+  
   const scale = useSharedValue(1);
   const isInteractionDisabled = disabled || loading;
 
@@ -124,60 +153,3 @@ export default function AppButton({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: theme.radius.md,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  primary: {
-    backgroundColor: theme.colors.accent,
-  },
-  secondary: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconLeft: {
-    marginRight: theme.spacing.sm,
-  },
-  iconRight: {
-    marginLeft: theme.spacing.sm,
-  },
-  labelBase: {
-    fontSize: theme.typography.fontSizes.md,
-    fontWeight: theme.typography.fontWeights.bold,
-    letterSpacing: 1,
-  },
-  labelPrimary: {
-    color: theme.colors.background,
-  },
-  labelSecondary: {
-    color: theme.colors.textPrimary,
-  },
-  labelOutline: {
-    color: theme.colors.accent,
-  },
-  labelDisabled: {
-    opacity: 0.9,
-  },
-});

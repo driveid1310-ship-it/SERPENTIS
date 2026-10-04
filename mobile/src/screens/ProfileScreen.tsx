@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Image } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import Screen from '../components/Screen/Screen';
 import Header from '../components/Header/Header';
 import AppCard from '../components/Card/AppCard';
 import { useAuth } from '../hooks/useAuth';
-import { theme } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -21,39 +21,34 @@ interface SettingsAction {
   key: string;
   label: string;
   description: string;
-  isConnected: boolean;
 }
 
 const SETTINGS_ACTIONS: SettingsAction[] = [
   {
-    key: 'edit-profile',
-    label: 'Edit Profile',
-    description: 'Update your name and details',
-    isConnected: false,
+    key: 'theme',
+    label: 'Appearance',
+    description: 'Change application theme',
   },
   {
-    key: 'change-password',
-    label: 'Change Password',
-    description: 'Update your account password',
-    isConnected: false,
+    key: 'edit-profile',
+    label: 'Edit Profile',
+    description: 'Update your profile name',
   },
+  
   {
     key: 'notification-preferences',
     label: 'Notification Preferences',
     description: 'Choose what you get notified about',
-    isConnected: false,
   },
   {
     key: 'privacy-security',
     label: 'Privacy & Security',
-    description: 'Manage your data and account security',
-    isConnected: false,
+    description: 'Password recovery and account access',
   },
   {
     key: 'help-support',
     label: 'Help & Support',
-    description: 'Get help or contact the SERPENTIS team',
-    isConnected: false,
+    description: 'Guidance for using SERPENTIS',
   },
 ];
 
@@ -75,6 +70,8 @@ function formatMemberSince(isoDate: string | undefined): string {
 }
 
 export default function ProfileScreen({ navigation }: ProfileScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const { user, logout } = useAuth();
   const [pendingNoticeLabel, setPendingNoticeLabel] = useState<string | null>(
     null,
@@ -93,6 +90,26 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   }, [navigation]);
 
   const handleSettingsActionPress = useCallback((action: SettingsAction) => {
+    if (action.key === 'theme') {
+      navigation.navigate('Theme');
+      return;
+    }
+
+    if (action.key === 'edit-profile') {
+      navigation.navigate('EditProfile');
+      return;
+    }
+
+    if (action.key === 'privacy-security') {
+      navigation.navigate('PrivacySecurity');
+      return;
+    }
+
+    if (action.key === 'help-support') {
+      navigation.navigate('HelpSupport');
+      return;
+    }
+
     if (action.key === 'notification-preferences') {
       navigation.navigate('Notifications');
       return;
@@ -110,7 +127,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         onPress: () => {
           logout()
             .then(() => {
-              navigation.replace('Login');
+              navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
             })
             .catch(() => {
               Alert.alert(
@@ -130,7 +147,11 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
       <View style={styles.section}>
         <AppCard elevation="md" style={styles.identityCard}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitial}>{initial}</Text>
+            {user?.profilePicture ? (
+              <Image source={{ uri: user.profilePicture }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            )}
           </View>
           <Text style={styles.name}>{fullName}</Text>
           <Text style={styles.email}>{email}</Text>
@@ -158,6 +179,37 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
             <Text style={styles.infoLabel}>Member Since</Text>
             <Text style={styles.infoValue}>{memberSince}</Text>
           </View>
+        </AppCard>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Civic Activity</Text>
+        <AppCard elevation="sm" padded={false}>
+          <Pressable style={styles.settingsRow} onPress={() => navigation.navigate('Leaderboard')}>
+            <View style={styles.settingsRowText}>
+              <Text style={styles.settingsLabel}>Leaderboard & Trust Score</Text>
+              <Text style={styles.settingsDescription}>View your trust score and community rank</Text>
+            </View>
+            <Text style={styles.settingsChevron}>{'\u203A'}</Text>
+          </Pressable>
+          <View style={styles.settingsDivider} />
+          
+          <Pressable style={styles.settingsRow} onPress={() => navigation.navigate('ContributionHistory')}>
+            <View style={styles.settingsRowText}>
+              <Text style={styles.settingsLabel}>Contribution History</Text>
+              <Text style={styles.settingsDescription}>View your reports and comments</Text>
+            </View>
+            <Text style={styles.settingsChevron}>{'\u203A'}</Text>
+          </Pressable>
+          <View style={styles.settingsDivider} />
+
+          <Pressable style={styles.settingsRow} onPress={() => navigation.navigate('Badges')}>
+            <View style={styles.settingsRowText}>
+              <Text style={styles.settingsLabel}>Medals & Badges</Text>
+              <Text style={styles.settingsDescription}>View your earned civic achievements</Text>
+            </View>
+            <Text style={styles.settingsChevron}>{'\u203A'}</Text>
+          </Pressable>
         </AppCard>
       </View>
 
@@ -201,7 +253,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   section: {
     marginTop: theme.spacing.xl,
   },
@@ -211,7 +263,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.fontSizes.md,
     fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginBottom: theme.spacing.md,
   },
   identityCard: {
@@ -223,18 +275,23 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.primarySoft,
     marginBottom: theme.spacing.md,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarInitial: {
     fontSize: theme.typography.h3,
     fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.accent,
+    color: theme.colors.primary,
   },
   name: {
     fontSize: theme.typography.fontSizes.lg,
     fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   email: {
@@ -256,7 +313,7 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.lg,
     fontSize: theme.typography.fontSizes.sm,
     fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     textAlign: 'right',
   },
   infoDivider: {
@@ -277,7 +334,7 @@ const styles = StyleSheet.create({
   settingsLabel: {
     fontSize: theme.typography.fontSizes.sm,
     fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginBottom: 2,
   },
   settingsDescription: {
@@ -301,7 +358,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     borderWidth: 1,
-    borderColor: theme.colors.danger,
+    borderColor: theme.colors.error,
     borderRadius: theme.radius.md,
     paddingVertical: theme.spacing.md,
     alignItems: 'center',
@@ -310,6 +367,6 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     fontSize: theme.typography.fontSizes.md,
     fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.danger,
+    color: theme.colors.error,
   },
 });

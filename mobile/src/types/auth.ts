@@ -11,6 +11,27 @@ export interface RegisterCredentials {
   password: string;
 }
 
+export interface RequestPasswordResetData {
+  accepted: true;
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+
+export interface VerifyPasswordResetOtpCredentials {
+  email: string;
+  otp: string;
+}
+
+export interface PasswordResetGrant {
+  resetToken: string;
+  expiresInSeconds: number;
+}
+
+export interface ResetPasswordCredentials {
+  resetToken: string;
+  newPassword: string;
+}
+
 export interface AuthData {
   user: User;
   token: string;
@@ -24,4 +45,5 @@ export interface AuthContextValue {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }

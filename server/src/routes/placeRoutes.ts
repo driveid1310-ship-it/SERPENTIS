@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+
 import {
   getAllPlaces,
   getPlaceById,
@@ -38,6 +38,18 @@ router.get("/trending", getTrendingPlaces);
 
 router.get("/category/:category", getPlacesByCategory);
 
+router.get(
+  "/favorites",
+  authMiddleware,
+  getFavoritePlaces,
+);
+
+router.get(
+  "/reviews",
+  authMiddleware,
+  getMyReviews,
+);
+
 // Keep this LAST among GET routes
 router.get("/:id", getPlaceById);
 
@@ -55,37 +67,9 @@ router.delete("/:id/favorite", authMiddleware, unfavoritePlace);
 // Admin / Moderator
 // ===============================
 
-router.post(
-  "/",
-  authMiddleware,
-  authorizeRoles("admin", "moderator"),
-  createPlace,
-);
-
-router.put(
-  "/:id",
-  authMiddleware,
-  authorizeRoles("admin", "moderator"),
-  updatePlace,
-);
-
-router.delete(
-  "/:id",
-  authMiddleware,
-  authorizeRoles("admin", "moderator"),
-  deletePlace,
-);
-router.get(
-  "/favorites",
-  authMiddleware,
-  getFavoritePlaces,
-);
-
-router.get(
-  "/reviews",
-  authMiddleware,
-  getMyReviews,
-);
+router.post("/", authMiddleware, createPlace);
+router.put("/:id", authMiddleware, updatePlace);
+router.delete("/:id", authMiddleware, deletePlace);
 
 router.delete(
   "/review/:reviewId",

@@ -1,13 +1,34 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  Image,
+  PermissionsAndroid,
+  Platform,
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+} from 'react-native';
+import {
+  launchCamera,
+  launchImageLibrary,
+  type Asset,
+  type ImagePickerResponse,
+} from 'react-native-image-picker';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import Screen from '../components/Screen/Screen';
+import ResultView from '../components/Result/ResultView';
 import Header from '../components/Header/Header';
 import AppCard from '../components/Card/AppCard';
 import AppButton from '../components/Button/AppButton';
 import AppInput from '../components/Input/AppInput';
-import { theme } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import { useReports } from '../hooks/useReports';
+import { useLocation } from '../hooks/useLocation';
+import {
+  ReportImageUploadError,
+  uploadReportImage,
+} from '../services/reportService';
 
 type ReportIssueScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -52,20 +73,39 @@ const SEVERITY_OPTIONS: { key: ReportSeverity; label: string }[] = [
   { key: 'high', label: 'High' },
 ];
 
+// Deterministic title for a report, derived from its category. The backend
+// requires a title (min 3 characters) but this screen has no title input,
+// so every generated value below is a fixed, human-readable string well
+// over that minimum.
+const REPORT_TITLE_BY_CATEGORY: Record<ReportCategory, string> = {
+  pothole: 'Pothole Report',
+  garbage: 'Garbage Report',
+  'water-leakage': 'Water Leakage Report',
+  streetlight: 'Streetlight Report',
+  traffic: 'Traffic Report',
+  pollution: 'Pollution Report',
+  'stray-animals': 'Stray Animal Report',
+  other: 'Issue Report',
+};
+
+function generateReportTitle(category: ReportCategory): string {
+  return REPORT_TITLE_BY_CATEGORY[category];
+}
+
 interface FormErrors {
   category?: string;
   severity?: string;
   description?: string;
+  location?: string;
 }
 
 const MIN_DESCRIPTION_LENGTH = 10;
-// Purely cosmetic — demonstrates the button's loading state. No network
-// call happens; nothing is submitted anywhere.
-const SUBMIT_LOADING_DEMO_MS = 500;
 
 export default function ReportIssueScreen({
   navigation,
 }: ReportIssueScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [selectedCategory, setSelectedCategory] =
     useState<ReportCategory | null>(null);
   const [selectedSeverity, setSelectedSeverity] =
@@ -73,39 +113,122 @@ export default function ReportIssueScreen({
   const [description, setDescription] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [selectedPhoto, setSelectedPhoto] = useState<Asset | null>(null);
+  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isPickingPhoto, setIsPickingPhoto] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
-  // Photo and location are UI-only in this build — no image-picker or
-  // geolocation package is installed. These flags just control whether
-  // the honest "not connected yet" notice is shown after the user taps
-  // the related action.
-  const [photoNoticeVisible, setPhotoNoticeVisible] = useState(false);
-  const [locationNoticeVisible, setLocationNoticeVisible] = useState(false);
+  const {
+    location,
+    status: locationStatus,
+    message: locationMessage,
+    requestLocation,
+  } = useLocation();
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isNotConnectedNoticeVisible, setIsNotConnectedNoticeVisible] =
-    useState(false);
-
-  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (submitTimeoutRef.current) {
-        clearTimeout(submitTimeoutRef.current);
-      }
-    };
-  }, []);
+  const { status, submittedReport, submit, reset } =
+    useReports();
+  const isSubmitting = status === 'submitting';
 
   const handleBackPress = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
-  const handlePhotoActionPress = useCallback(() => {
-    setPhotoNoticeVisible(true);
+  const handlePickedPhoto = useCallback((response: ImagePickerResponse) => {
+    if (response.didCancel) {
+      return;
+    }
+
+    if (response.errorCode) {
+      setPhotoError(
+        response.errorCode === 'camera_unavailable'
+          ? 'The camera is unavailable on this device.'
+          : response.errorCode === 'permission'
+            ? 'Camera permission is required to take a photo.'
+            : 'Unable to open the photo picker. Please try again.',
+      );
+      return;
+    }
+
+    const asset = response.assets?.[0];
+    if (!asset?.uri) {
+      setPhotoError('The selected photo could not be accessed. Please try again.');
+      return;
+    }
+
+    setSelectedPhoto(asset);
+    setUploadedPhotoUrl(null);
+    setPhotoError(null);
+  }, []);
+
+  const handleGalleryPress = useCallback(async () => {
+    setPhotoError(null);
+    setIsPickingPhoto(true);
+    try {
+      const response = await launchImageLibrary({
+        mediaType: 'photo',
+        selectionLimit: 1,
+        restrictMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 0.8,
+      });
+      handlePickedPhoto(response);
+    } catch {
+      setPhotoError('Unable to open the photo library. Please try again.');
+    } finally {
+      setIsPickingPhoto(false);
+    }
+  }, [handlePickedPhoto]);
+
+  const handleCameraPress = useCallback(async () => {
+    setPhotoError(null);
+    setIsPickingPhoto(true);
+    try {
+      if (Platform.OS === 'android') {
+        const permission = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera permission',
+            message: 'SERPENTIS needs camera access to take a report photo.',
+            buttonPositive: 'Continue',
+            buttonNegative: 'Cancel',
+          },
+        );
+
+        if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
+          setPhotoError(
+            permission === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
+              ? 'Camera permission is blocked. Enable it in Android Settings to take a photo.'
+              : 'Camera permission was denied. Allow camera access to take a photo.',
+          );
+          return;
+        }
+      }
+
+      const response = await launchCamera({
+        mediaType: 'photo',
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 0.8,
+      });
+      handlePickedPhoto(response);
+    } catch {
+      setPhotoError('Unable to open the camera. Please try again.');
+    } finally {
+      setIsPickingPhoto(false);
+    }
+  }, [handlePickedPhoto]);
+
+  const handleRemovePhotoPress = useCallback(() => {
+    setSelectedPhoto(null);
+    setUploadedPhotoUrl(null);
+    setPhotoError(null);
   }, []);
 
   const handleUseCurrentLocationPress = useCallback(() => {
-    setLocationNoticeVisible(true);
-  }, []);
+    requestLocation();
+  }, [requestLocation]);
 
   const handleCategoryPress = useCallback((key: ReportCategory) => {
     setSelectedCategory((previous) => (previous === key ? null : key));
@@ -141,27 +264,114 @@ export default function ReportIssueScreen({
       nextErrors.description = `Please describe the issue in at least ${MIN_DESCRIPTION_LENGTH} characters.`;
     }
 
+    if (!location) {
+      nextErrors.location =
+        'A location is required to submit a report, and GPS isn\u2019t connected yet in this build.';
+    }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
-  }, [selectedCategory, selectedSeverity, description]);
+  }, [selectedCategory, selectedSeverity, description, location]);
 
-  const handleSubmitPress = useCallback(() => {
+  const handleSubmitPress = useCallback(async () => {
     if (!validateForm()) {
       return;
     }
 
-    setIsNotConnectedNoticeVisible(false);
-    setIsSubmitting(true);
+    if (!selectedCategory || !selectedSeverity || !location) {
+      return;
+    }
 
-    submitTimeoutRef.current = setTimeout(() => {
-      setIsSubmitting(false);
-      setIsNotConnectedNoticeVisible(true);
-    }, SUBMIT_LOADING_DEMO_MS);
-  }, [validateForm]);
+    setPhotoError(null);
+    let imageUrls: string[] = [];
+    if (selectedPhoto) {
+      if (uploadedPhotoUrl) {
+        imageUrls = [uploadedPhotoUrl];
+      } else {
+        setIsUploadingPhoto(true);
+        try {
+          const url = await uploadReportImage(selectedPhoto);
+          setUploadedPhotoUrl(url);
+          imageUrls = [url];
+        } catch (error) {
+          setPhotoError(
+            error instanceof ReportImageUploadError
+              ? error.message
+              : 'Unable to upload this photo. Please try again.',
+          );
+          return;
+        } finally {
+          setIsUploadingPhoto(false);
+        }
+      }
+    }
 
-  const handleEditReportPress = useCallback(() => {
-    setIsNotConnectedNoticeVisible(false);
-  }, []);
+    await submit({
+      title: generateReportTitle(selectedCategory),
+      description: description.trim(),
+      category: selectedCategory,
+      images: imageUrls,
+      location,
+      priority: selectedSeverity,
+      isAnonymous,
+    });
+  }, [
+    validateForm,
+    selectedCategory,
+    selectedSeverity,
+    description,
+    location,
+    selectedPhoto,
+    uploadedPhotoUrl,
+    isAnonymous,
+    submit,
+  ]);
+
+  const handleResetPress = useCallback(() => {
+    reset();
+  }, [reset]);
+
+  
+
+  const isBusy = isSubmitting || isPickingPhoto || isUploadingPhoto;
+
+  
+  if (status === 'success' && submittedReport) {
+    return (
+      <ResultView
+        status="success"
+        title="REPORT SUBMITTED"
+        description="Your report has been successfully submitted to SERPENTIS."
+        referenceId={submittedReport._id}
+        primaryAction={{
+          label: 'VIEW REPORT',
+          onPress: () => navigation.replace('ReportDetails', { reportId: submittedReport._id }),
+        }}
+        secondaryAction={{
+          label: 'DONE',
+          onPress: () => navigation.goBack(),
+        }}
+      />
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <ResultView
+        status="failure"
+        title="SUBMISSION FAILED"
+        description="We couldn't submit your report. Please check your connection and try again."
+        primaryAction={{
+          label: 'TRY AGAIN',
+          onPress: handleResetPress,
+        }}
+        secondaryAction={{
+          label: 'CANCEL',
+          onPress: () => navigation.goBack(),
+        }}
+      />
+    );
+  }
 
   return (
     <Screen scrollable keyboardAvoiding>
@@ -174,36 +384,60 @@ export default function ReportIssueScreen({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Evidence / Photo</Text>
         <AppCard elevation="sm">
-          <Pressable
-            style={styles.photoPlaceholder}
-            onPress={handlePhotoActionPress}
-          >
-            <Text style={styles.photoPlaceholderIcon}>{'\uD83D\uDCF7'}</Text>
-            <Text style={styles.photoPlaceholderText}>
-              Add a photo of the issue
-            </Text>
-            <Text style={styles.photoPlaceholderSubtext}>
-              Clear photos help your report get resolved faster
-            </Text>
-          </Pressable>
+          {selectedPhoto?.uri ? (
+            <View style={styles.selectedPhotoContainer}>
+              <Image
+                source={{ uri: selectedPhoto.uri }}
+                style={styles.photoPreview}
+                resizeMode="cover"
+                accessibilityLabel="Selected report photo"
+              />
+              <Pressable
+                onPress={handleRemovePhotoPress}
+                disabled={isBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Remove selected photo"
+                style={styles.removePhotoButton}
+              >
+                <Text style={styles.removePhotoText}>Remove photo</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Text style={styles.photoPlaceholderIcon}>{'\uD83D\uDCF7'}</Text>
+              <Text style={styles.photoPlaceholderText}>
+                Add a photo of the issue
+              </Text>
+              <Text style={styles.photoPlaceholderSubtext}>
+                Clear photos help your report get resolved faster
+              </Text>
+            </View>
+          )}
           <View style={styles.rowButtons}>
             <AppButton
               label="Camera"
-              onPress={handlePhotoActionPress}
+              onPress={handleCameraPress}
               variant="outline"
               style={styles.rowButton}
+              loading={isPickingPhoto}
+              disabled={isBusy}
             />
             <AppButton
               label="Gallery"
-              onPress={handlePhotoActionPress}
+              onPress={handleGalleryPress}
               variant="secondary"
               style={styles.rowButton}
+              disabled={isBusy}
             />
           </View>
-          {photoNoticeVisible ? (
-            <Text style={styles.noticeText}>
-              Photo capture isn&apos;t connected yet in this build.
-            </Text>
+          {isUploadingPhoto ? (
+            <Text style={styles.noticeText}>Uploading photo...</Text>
+          ) : null}
+          {uploadedPhotoUrl ? (
+            <Text style={styles.noticeText}>Photo uploaded and ready to submit.</Text>
+          ) : null}
+          {photoError ? (
+            <Text style={styles.photoErrorText}>{photoError}</Text>
           ) : null}
         </AppCard>
       </View>
@@ -214,22 +448,27 @@ export default function ReportIssueScreen({
           <View style={styles.locationRow}>
             <Text style={styles.locationIcon}>{'\uD83D\uDCCD'}</Text>
             <Text style={styles.locationPlaceholder}>
-              No location attached
+              {location
+                ? `${location.coordinates[1].toFixed(5)}, ${location.coordinates[0].toFixed(5)}`
+                : 'No location attached'}
             </Text>
           </View>
           <Text style={styles.noticeText}>
-            Location services will be connected in a future update.
+            {locationStatus === 'checking'
+              ? 'Getting your current location\u2026'
+              : 'Tap below to attach your current location.'}
           </Text>
-          {locationNoticeVisible ? (
-            <Text style={styles.noticeTextConfirm}>
-              GPS is not connected yet — this report will be submitted
-              without a precise location.
-            </Text>
+          {locationMessage ? (
+            <Text style={styles.noticeTextConfirm}>{locationMessage}</Text>
+          ) : null}
+          {errors.location ? (
+            <Text style={styles.fieldErrorText}>{errors.location}</Text>
           ) : null}
           <AppButton
             label="Use Current Location"
             onPress={handleUseCurrentLocationPress}
             variant="outline"
+            loading={locationStatus === 'checking'}
           />
         </AppCard>
       </View>
@@ -335,40 +574,24 @@ export default function ReportIssueScreen({
         </Pressable>
       </View>
 
-      {isNotConnectedNoticeVisible ? (
-        <View style={styles.section}>
-          <AppCard elevation="sm" style={styles.notConnectedCard}>
-            <Text style={styles.notConnectedTitle}>
-              Submission not connected yet
-            </Text>
-            <Text style={styles.notConnectedMessage}>
-              This screen is UI-only in the current build. Your report was
-              not sent — backend submission will be wired up in a future
-              update.
-            </Text>
-            <AppButton
-              label="Edit Report"
-              onPress={handleEditReportPress}
-              variant="outline"
-            />
-          </AppCard>
-        </View>
-      ) : null}
+      
+
+      
 
       <View style={[styles.section, styles.lastSection]}>
         <AppButton
           label="REPORT ISSUE"
           onPress={handleSubmitPress}
           variant="primary"
-          loading={isSubmitting}
-          disabled={isSubmitting}
+          loading={isSubmitting || isUploadingPhoto}
+          disabled={isBusy}
         />
       </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   section: {
     marginTop: theme.spacing.xl,
   },
@@ -378,12 +601,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.fontSizes.md,
     fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginBottom: theme.spacing.md,
   },
   fieldErrorText: {
     fontSize: theme.typography.fontSizes.xs,
-    color: theme.colors.danger,
+    color: theme.colors.error,
     marginBottom: theme.spacing.sm,
   },
   noticeText: {
@@ -411,6 +634,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.lg,
   },
+  selectedPhotoContainer: {
+    marginBottom: theme.spacing.md,
+  },
+  photoPreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.background,
+  },
+  removePhotoButton: {
+    alignSelf: 'flex-end',
+    paddingTop: theme.spacing.sm,
+  },
+  removePhotoText: {
+    color: theme.colors.error,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.semibold,
+  },
+  photoErrorText: {
+    color: theme.colors.error,
+    fontSize: theme.typography.fontSizes.xs,
+    marginTop: theme.spacing.xs,
+  },
   photoPlaceholderIcon: {
     fontSize: 30,
     marginBottom: theme.spacing.sm,
@@ -418,7 +664,7 @@ const styles = StyleSheet.create({
   photoPlaceholderText: {
     fontSize: theme.typography.fontSizes.md,
     fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   photoPlaceholderSubtext: {
@@ -467,8 +713,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   categoryChipSelected: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primarySoft,
   },
   categoryChipText: {
     fontSize: theme.typography.fontSizes.sm,
@@ -476,7 +722,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   categoryChipTextSelected: {
-    color: theme.colors.accent,
+    color: theme.colors.primary,
   },
   severityRow: {
     flexDirection: 'row',
@@ -493,8 +739,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   severityChipSelected: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primarySoft,
   },
   severityChipText: {
     fontSize: theme.typography.fontSizes.sm,
@@ -502,7 +748,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   severityChipTextSelected: {
-    color: theme.colors.accent,
+    color: theme.colors.primary,
   },
   anonymousRow: {
     flexDirection: 'row',
@@ -522,7 +768,7 @@ const styles = StyleSheet.create({
   anonymousLabel: {
     fontSize: theme.typography.fontSizes.sm,
     fontWeight: theme.typography.fontWeights.semibold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginBottom: 2,
   },
   anonymousDescription: {
@@ -538,7 +784,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleTrackActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: theme.colors.primary,
   },
   toggleThumb: {
     width: 20,
@@ -556,13 +802,12 @@ const styles = StyleSheet.create({
   notConnectedTitle: {
     fontSize: theme.typography.fontSizes.md,
     fontWeight: theme.typography.fontWeights.bold,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   notConnectedMessage: {
-    fontSize: theme.typography.fontSizes.sm,
+    fontSize: theme.typography.fontSizes.xs,
     color: theme.colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: theme.spacing.md,
+    lineHeight: 18,
   },
 });

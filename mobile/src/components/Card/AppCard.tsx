@@ -12,7 +12,7 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
-import { theme } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 
 export type AppCardElevation = 'none' | 'sm' | 'md' | 'lg';
 
@@ -35,7 +35,23 @@ export default function AppCard({
   style,
   testID,
 }: AppCardProps) {
+  
+  const { theme } = useTheme();
+  
+  const getStyles = () => StyleSheet.create({
+    base: {
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radius.lg,
+    },
+    padded: { padding: theme.spacing.lg },
+  });
+  const styles = getStyles();
+
+  
   const scale = useSharedValue(1);
+  const elevationStyle = elevation === 'none' ? undefined : elevation === 'md' ? theme.shadows.md : elevation === 'lg' ? theme.shadows.lg : theme.shadows.sm;
   const isPressable = typeof onPress === 'function';
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -56,14 +72,7 @@ export default function AppCard({
     scale.value = withSpring(1, { damping: 14, stiffness: 220 });
   }, [isPressable, scale]);
 
-  const elevationStyle =
-    elevation === 'none'
-      ? undefined
-      : elevation === 'md'
-        ? theme.shadows.md
-        : elevation === 'lg'
-          ? theme.shadows.lg
-          : theme.shadows.sm;
+  
 
   const cardStyle: StyleProp<ViewStyle>[] = [
     styles.base,
@@ -93,14 +102,3 @@ export default function AppCard({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
-  },
-  padded: {
-    padding: theme.spacing.lg,
-  },
-});

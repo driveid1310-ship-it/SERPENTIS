@@ -11,7 +11,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../hooks/useAuth';
-import { authTheme } from '../theme/authTheme';
+import { useTheme } from '../context/ThemeContext';
 import AuthHeader from '../components/AuthHeader/AuthHeader';
 import AuthField from '../components/AuthField/AuthField';
 import AuthButton from '../components/AuthButton/AuthButton';
@@ -25,6 +25,8 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -54,7 +56,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
     try {
       await login({ email: trimmedEmail, password });
-      navigation.replace('Home');
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (err) {
       setError(
         err instanceof Error
@@ -156,30 +158,30 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: authTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: authTheme.spacing.xxl,
-    paddingVertical: authTheme.spacing.xxxl,
+    paddingHorizontal: theme.spacing.xxl,
+    paddingVertical: theme.spacing.xxxl,
   },
   card: {
-    backgroundColor: authTheme.colors.glass,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.glassBorder,
-    borderRadius: authTheme.radius.xl,
-    padding: authTheme.spacing.xl,
-    marginBottom: authTheme.spacing.xxl,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
+    marginBottom: theme.spacing.xxl,
   },
   optionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: authTheme.spacing.lg,
+    marginBottom: theme.spacing.lg,
   },
   rememberMeRow: {
     flexDirection: 'row',
@@ -190,63 +192,63 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: authTheme.colors.border,
+    borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: authTheme.spacing.sm,
+    marginRight: theme.spacing.sm,
   },
   checkboxChecked: {
-    borderColor: authTheme.colors.accent,
+    borderColor: theme.colors.primary,
   },
   checkboxDot: {
     width: 9,
     height: 9,
     borderRadius: 2,
-    backgroundColor: authTheme.colors.accent,
+    backgroundColor: theme.colors.primary,
   },
   rememberMeText: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
   },
   forgotPasswordText: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    fontWeight: authTheme.typography.fontWeights.semibold,
-    color: authTheme.colors.accent,
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.primary,
   },
   errorBanner: {
-    backgroundColor: authTheme.colors.errorMuted,
-    borderRadius: authTheme.radius.sm,
-    paddingHorizontal: authTheme.spacing.md,
-    paddingVertical: authTheme.spacing.sm,
-    marginBottom: authTheme.spacing.lg,
+    backgroundColor: theme.colors.error + "20",
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
   },
   errorBannerText: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.error,
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.error,
   },
   loginButton: {
-    marginBottom: authTheme.spacing.xl,
+    marginBottom: theme.spacing.xl,
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: authTheme.spacing.xl,
+    marginBottom: theme.spacing.xl,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: authTheme.colors.border,
+    backgroundColor: theme.colors.border,
   },
   dividerText: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    fontWeight: authTheme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.bold,
     letterSpacing: 2,
-    color: authTheme.colors.textSecondary,
-    marginHorizontal: authTheme.spacing.md,
+    color: theme.colors.textSecondary,
+    marginHorizontal: theme.spacing.md,
   },
   versionText: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.placeholder,
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
 });

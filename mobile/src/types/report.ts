@@ -55,10 +55,11 @@ export interface CreateReportPayload {
   images: string[];
   location: GeoJSONPoint;
   priority: ReportSeverity;
+  isAnonymous: boolean;
 }
 
 export interface Report {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   category: ReportCategory;
@@ -66,5 +67,15 @@ export interface Report {
   images: string[];
   location: GeoJSONPoint;
   priority: ReportSeverity;
+  upvotes: string[];
+  personallyObserved: string[];
   createdAt: string;
+  reportedBy?: UserReference;
+  verified?: boolean;
+  isDuplicate?: boolean;
+}
+export interface UserReference {
+  _id: string;
+  fullName: string;
+  email: string;
 }

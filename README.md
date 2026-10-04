@@ -12,4 +12,4 @@ A community-driven civic reporting and city engagement platform built with React
 
 ## Project Status
 
-🚧 Currently under development.
+🚧 Currently under development.ī

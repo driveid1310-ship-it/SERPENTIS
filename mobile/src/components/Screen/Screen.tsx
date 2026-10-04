@@ -1,58 +1,31 @@
 import React from 'react';
-import {
-  View,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  StyleProp,
-  ViewStyle,
-} from 'react-native';
-import { SafeAreaView, Edge } from 'react-native-safe-area-context';
-import { theme } from '../../theme';
+import { SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, StyleProp, ViewStyle } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 
 export interface ScreenProps {
   children: React.ReactNode;
   scrollable?: boolean;
   keyboardAvoiding?: boolean;
-  style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
-  edges?: Edge[];
-  testID?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export default function Screen({
-  children,
-  scrollable = false,
-  keyboardAvoiding = true,
-  style,
-  contentContainerStyle,
-  edges = ['top', 'bottom', 'left', 'right'],
-  testID,
-}: ScreenProps) {
+export default function Screen({ children, scrollable = false, keyboardAvoiding = true, contentContainerStyle, style }: ScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
+
   const content = scrollable ? (
-    <ScrollView
-      contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView contentContainerStyle={[styles.scrollContent, contentContainerStyle]} keyboardShouldPersistTaps="handled">
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.content, contentContainerStyle]}>{children}</View>
+    <View style={[styles.content, contentContainerStyle, style]}>{children}</View>
   );
 
   return (
-    <SafeAreaView
-      style={[styles.safeArea, style]}
-      edges={edges}
-      testID={testID}
-    >
+    <SafeAreaView style={styles.safeArea}>
       {keyboardAvoiding ? (
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {content}
         </KeyboardAvoidingView>
       ) : (
@@ -62,21 +35,9 @@ export default function Screen({
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.lg,
-  },
+const getStyles = (theme: any) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: theme.colors.background },
+  keyboardView: { flex: 1 },
+  content: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
 });

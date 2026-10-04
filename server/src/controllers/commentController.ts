@@ -1,6 +1,7 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import { Types } from 'mongoose';
 import Comment from '../models/Comment.js';
+import Notification from '../models/Notification.js';
 import Report from '../models/Report.js';
 import type { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 
@@ -54,6 +55,19 @@ export async function createComment(
     });
 
     const populatedComment = await comment.populate('user', 'name email');
+
+    if (report.reportedBy.toString() !== req.userId) {
+      try {
+        await Notification.create({
+          user: report.reportedBy,
+          title: 'New Comment',
+          message: 'Someone commented on your report.',
+          type: 'report',
+        });
+      } catch (e) {
+        console.error('Failed to create notification', e);
+      }
+    }
 
     res.status(201).json({
       success: true,

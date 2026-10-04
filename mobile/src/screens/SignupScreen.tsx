@@ -10,7 +10,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../hooks/useAuth';
-import { authTheme } from '../theme/authTheme';
+import { useTheme } from '../context/ThemeContext';
 import AuthHeader from '../components/AuthHeader/AuthHeader';
 import AuthField from '../components/AuthField/AuthField';
 import AuthButton from '../components/AuthButton/AuthButton';
@@ -25,6 +25,8 @@ interface SignupScreenProps {
 }
 
 export default function SignupScreen({ navigation }: SignupScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const { register } = useAuth();
 
   const [fullName, setFullName] = useState('');
@@ -62,7 +64,7 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
         email: trimmedEmail,
         password,
       });
-      navigation.replace('Home');
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (err) {
       setError(
         err instanceof Error
@@ -167,37 +169,37 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: authTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: authTheme.spacing.xxl,
-    paddingVertical: authTheme.spacing.xxxl,
+    paddingHorizontal: theme.spacing.xxl,
+    paddingVertical: theme.spacing.xxxl,
   },
   card: {
-    backgroundColor: authTheme.colors.glass,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.glassBorder,
-    borderRadius: authTheme.radius.xl,
-    padding: authTheme.spacing.xl,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
   },
   errorBanner: {
-    backgroundColor: authTheme.colors.errorMuted,
-    borderRadius: authTheme.radius.sm,
-    paddingHorizontal: authTheme.spacing.md,
-    paddingVertical: authTheme.spacing.sm,
-    marginBottom: authTheme.spacing.lg,
+    backgroundColor: theme.colors.error + "20",
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
   },
   errorBannerText: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.error,
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.error,
   },
   createAccountButton: {
-    marginBottom: authTheme.spacing.lg,
+    marginBottom: theme.spacing.lg,
   },
   footerRow: {
     flexDirection: 'row',
@@ -206,12 +208,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   footerText: {
-    fontSize: authTheme.typography.fontSizes.sm,
-    color: authTheme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.sm,
+    color: theme.colors.textSecondary,
   },
   loginLinkText: {
-    fontSize: authTheme.typography.fontSizes.sm,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.accent,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.primary,
   },
 });

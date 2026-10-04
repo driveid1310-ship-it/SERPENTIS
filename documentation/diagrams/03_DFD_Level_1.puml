@@ -1,0 +1,51 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+title SERPENTIS Data Flow Diagram (Level 1)
+
+rectangle "Citizen" as citizen
+rectangle "Cloudinary API" as cloudinary
+rectangle "OpenFreeMap API" as mapapi
+
+usecase "1.0 Auth & Profile" as p1
+usecase "2.0 Civic Reporting" as p2
+usecase "3.0 Emergency (SOS)" as p3
+usecase "4.0 Map & Spatial" as p4
+usecase "5.0 Community & Chat" as p5
+usecase "6.0 Gamification" as p6
+
+database "D1: Users" as d1
+database "D2: Reports" as d2
+database "D3: Services" as d3
+database "D4: SOS Events" as d4
+database "D5: Messages" as d5
+database "D6: OTPs" as d6
+
+citizen --> p1
+p1 --> d1
+p1 --> d6
+
+citizen --> p2
+p2 --> cloudinary
+cloudinary --> p2
+p2 --> d2
+p2 --> p6
+
+citizen --> p3
+p3 --> d4
+p3 --> citizen
+
+citizen --> p4
+p4 --> d2
+p4 --> d3
+p4 --> mapapi
+mapapi --> p4
+p4 --> citizen
+
+citizen --> p5
+p5 --> d5
+p5 --> citizen
+
+p6 --> d1
+p6 --> citizen
+@enduml

@@ -1,143 +1,84 @@
-import React, { useCallback, useRef, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-
-import { authTheme } from '../../theme/authTheme';
+import React, { useRef, useState } from 'react';
+import { View, TextInput, StyleSheet, Text } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 
 export interface OtpInputProps {
   length?: number;
   value: string;
-  onChangeValue: (value: string) => void;
+  onChange?: (value: string) => void;
+  onChangeValue?: (value: string) => void;
+  error?: string;
   errorMessage?: string;
   autoFocus?: boolean;
 }
 
-export default function OtpInput({
-  length = 6,
-  value,
-  onChangeValue,
-  errorMessage,
-  autoFocus = true,
-}: OtpInputProps) {
-  const inputRef = useRef<TextInput>(null);
-  const [isFocused, setIsFocused] = useState(false);
+const OtpInput = ({ length = 6, value, onChange, onChangeValue, error, errorMessage, autoFocus }: OtpInputProps) => {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
+  const displayError = error || errorMessage;
+  
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(autoFocus ? 0 : null);
+  const inputs = useRef<Array<TextInput | null>>([]);
 
-  const hasError = Boolean(errorMessage);
+  const handleTextChange = (text: string, index: number) => {
+    const newValue = value.split('');
+    newValue[index] = text;
+    const finalValue = newValue.join('').substring(0, length);
+    if (onChange) onChange(finalValue);
+    if (onChangeValue) onChangeValue(finalValue);
 
-  const handleChangeText = useCallback(
-    (text: string) => {
-      const digitsOnly = text.replace(/[^0-9]/g, '').slice(0, length);
-      onChangeValue(digitsOnly);
-    },
-    [length, onChangeValue],
-  );
+    if (text && index < length - 1) {
+      inputs.current[index + 1]?.focus();
+    }
+  };
 
-  const cells = Array.from(
-    { length },
-    (_, index) => value[index] ?? '',
-  );
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !value[index] && index > 0) {
+      inputs.current[index - 1]?.focus();
+      const newValue = value.split('');
+      newValue[index - 1] = '';
+      if (onChange) onChange(newValue.join(''));
+      if (onChangeValue) onChangeValue(newValue.join(''));
+    }
+  };
 
   return (
-    <View>
-      <Pressable
-        onPress={() => inputRef.current?.focus()}
-        accessibilityRole="button"
-        accessibilityLabel="Enter verification code"
-        style={styles.wrapper}
-      >
-        <View style={styles.cellsRow} pointerEvents="none">
-          {cells.map((digit, index) => {
-            const isActiveCell =
-              isFocused && index === value.length;
-
-            return (
-              <View
-                key={`otp-cell-${index}`}
-                style={[
-                  styles.cell,
-                  isActiveCell && styles.cellActive,
-                  hasError && styles.cellError,
-                ]}
-              >
-                <Text style={styles.cellText}>{digit}</Text>
-              </View>
-            );
-          })}
-        </View>
-
-        <TextInput
-          ref={inputRef}
-          value={value}
-          onChangeText={handleChangeText}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          keyboardType="number-pad"
-          maxLength={length}
-          autoFocus={autoFocus}
-          style={styles.hiddenInput}
-          caretHidden
-        />
-      </Pressable>
-
-      {hasError ? (
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      ) : null}
+    <View style={styles.container}>
+      <View style={styles.inputsContainer}>
+        {Array(length)
+          .fill(0)
+          .map((_, index) => (
+            <TextInput
+              key={index}
+              ref={ref => { inputs.current[index] = ref; }}
+              style={[
+                styles.input,
+                focusedIndex === index && styles.inputFocused,
+                displayError && styles.inputError,
+              ]}
+              maxLength={1}
+              keyboardType="number-pad"
+              value={value[index] || ''}
+              onChangeText={text => handleTextChange(text, index)}
+              onKeyPress={e => handleKeyPress(e, index)}
+              onFocus={() => setFocusedIndex(index)}
+              onBlur={() => setFocusedIndex(null)}
+              selectTextOnFocus
+              autoFocus={autoFocus && index === 0}
+            />
+          ))}
+      </View>
+      {displayError ? <Text style={styles.errorText}>{displayError}</Text> : null}
     </View>
   );
-}
+};
+export default OtpInput;
 
-const styles = StyleSheet.create({
-  wrapper: {
-    position: 'relative',
-  },
-
-  cellsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-
-  cell: {
-    width: 48,
-    height: 56,
-    borderRadius: authTheme.radius.md,
-    borderWidth: 1,
-    borderColor: authTheme.colors.border,
-    backgroundColor: authTheme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  cellActive: {
-    borderColor: authTheme.colors.accent,
-  },
-
-  cellError: {
-    borderColor: authTheme.colors.error,
-  },
-
-  cellText: {
-    fontSize: authTheme.typography.fontSizes.xl,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.textPrimary,
-  },
-
-  hiddenInput: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0,
-  },
-
-  errorText: {
-    marginTop: authTheme.spacing.sm,
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.error,
-  },
+const getStyles = (theme: any) => StyleSheet.create({
+  container: { width: '100%', marginBottom: theme.spacing.md },
+  inputsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.sm },
+  input: { flex: 1, aspectRatio: 1, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, textAlign: 'center', fontSize: theme.typography.h2, fontWeight: theme.typography.fontWeights.bold as any, color: theme.colors.text },
+  inputFocused: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
+  inputError: { borderColor: theme.colors.error },
+  errorText: { color: theme.colors.error, fontSize: theme.typography.caption, marginTop: theme.spacing.xs, textAlign: 'center' },
 });

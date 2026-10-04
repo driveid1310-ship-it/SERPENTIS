@@ -1,129 +1,77 @@
-import React, { useCallback } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  PressableProps,
-  StyleProp,
-  StyleSheet,
-  Text,
-  ViewStyle,
-} from 'react-native';
+import React from 'react';
+import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 
-import authTheme from '../../theme/authTheme';
-
-export type AuthButtonVariant = 'primary' | 'outline';
-
-export interface AuthButtonProps
-  extends Omit<PressableProps, 'onPress' | 'children'> {
+export interface AuthButtonProps {
   label: string;
   onPress: () => void;
-  variant?: AuthButtonVariant;
   loading?: boolean;
   disabled?: boolean;
-  style?: StyleProp<ViewStyle>;
+  variant?: 'primary' | 'secondary' | 'outline';
+  style?: ViewStyle;
 }
 
-export default function AuthButton({
-  label,
-  onPress,
-  variant = 'primary',
-  loading = false,
-  disabled = false,
-  style,
-  ...pressableProps
-}: AuthButtonProps) {
-  const isDisabled = disabled || loading;
+const AuthButton = ({ label, onPress, loading, disabled, variant = 'primary', style }: AuthButtonProps) => {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
 
-  const handlePress = useCallback(() => {
-    if (isDisabled) {
-      return;
+  const getContainerStyle = () => {
+    switch (variant) {
+      case 'primary': return styles.primary;
+      case 'secondary': return styles.secondary;
+      case 'outline': return styles.outline;
     }
+  };
 
-    onPress();
-  }, [isDisabled, onPress]);
+  const getLabelStyle = () => {
+    switch (variant) {
+      case 'primary': return styles.labelPrimary;
+      case 'secondary': return styles.labelSecondary;
+      case 'outline': return styles.labelOutline;
+    }
+  };
+
+  const indicatorColor = variant === 'primary' ? theme.colors.background : theme.colors.primary;
 
   return (
     <Pressable
-      {...pressableProps}
-      onPress={handlePress}
-      disabled={isDisabled}
-      accessibilityRole="button"
-      accessibilityState={{
-        disabled: isDisabled,
-        busy: loading,
-      }}
       style={({ pressed }) => [
-        styles.button,
-        variant === 'primary' ? styles.primary : styles.outline,
-        isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
+        styles.base,
+        getContainerStyle(),
+        (disabled || loading) && styles.disabled,
+        pressed && !disabled && !loading && { opacity: 0.8 },
         style,
-      ]}>
+      ]}
+      onPress={onPress}
+      disabled={disabled || loading}
+    >
       {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={
-            variant === 'primary'
-              ? authTheme.colors.background
-              : authTheme.colors.accent
-          }
-        />
+        <ActivityIndicator color={indicatorColor} />
       ) : (
-        <Text
-          style={[
-            styles.label,
-            variant === 'primary'
-              ? styles.primaryLabel
-              : styles.outlineLabel,
-          ]}>
-          {label}
-        </Text>
+        <Text style={[styles.labelBase, getLabelStyle()]}>{label}</Text>
       )}
     </Pressable>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  button: {
-    width: '100%',
-    minHeight: 56,
-    borderRadius: authTheme.radius.md,
-    paddingHorizontal: authTheme.spacing.lg,
-    paddingVertical: authTheme.spacing.md,
+export default AuthButton;
+
+const getStyles = (theme: any) => StyleSheet.create({
+  base: {
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    width: '100%',
   },
-
-  primary: {
-    backgroundColor: authTheme.colors.accent,
-  },
-
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: authTheme.colors.border,
-  },
-
-  label: {
-    fontSize: authTheme.typography.fontSizes.md,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    letterSpacing: 0.4,
-  },
-
-  primaryLabel: {
-    color: authTheme.colors.background,
-  },
-
-  outlineLabel: {
-    color: authTheme.colors.textPrimary,
-  },
-
-  pressed: {
-    opacity: 0.86,
-    transform: [{ scale: 0.985 }],
-  },
-
-  disabled: {
-    opacity: 0.45,
-  },
+  primary: { backgroundColor: theme.colors.primary },
+  secondary: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+  outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.colors.primary },
+  disabled: { opacity: 0.5 },
+  labelBase: { fontSize: theme.typography.fontSizes.md, fontWeight: theme.typography.fontWeights.bold, letterSpacing: 1 },
+  labelPrimary: { color: theme.colors.background },
+  labelSecondary: { color: theme.colors.text },
+  labelOutline: { color: theme.colors.primary },
 });

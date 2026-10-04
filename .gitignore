@@ -1,24 +1,38 @@
 # Dependencies
 node_modules/
 
-# Environment variables
+# Environment / secrets
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+service-account*.json
 
-# Logs
+# Logs / temporary files
 *.log
+*.tmp
+*.temp
+*.bak
+*.old
 
-# macOS
-.DS_Store
+# Python
+__pycache__/
+*.pyc
 
-# Windows
-Thumbs.db
+# Build / generated output
+dist/
+build/
+coverage/
 
-# Android
+# Android generated files
 **/android/.gradle/
 **/android/app/build/
 **/android/build/
+**/android/app/.cxx/
 
-# React Native
+# React Native / Expo
 .expo/
 .expo-shared/
 
@@ -26,7 +40,81 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Misc
-coverage/
-dist/
-build/
+# OS
+.DS_Store
+Thumbs.db
+
+# Old / backup project copies
+mobile-old/
+mobilebackup/
+server-old/
+backend/
+zip/
+
+# Local scratch/testing
+mobile/scratch/
+mobile/src/screens/MapTestScreen.tsx
+
+# Temporary development scripts
+apply_audit_fixes.py
+apply_corrections.py
+apply_final_fixes.py
+build_chapter2.py
+build_chapter5.py
+build_chapter5_final.py
+build_report.py
+extracted.txt
+fix_dep.cjs
+fix_hook.cjs
+fix_id.cjs
+fix_lint.cjs
+fix_rs.cjs
+fix_splash.cjs
+lit_review.txt
+missing_styles.txt
+patch.js
+patch_*.cjs
+recover.py
+recovered_HomeScreen.tsx
+replace_placeholders.py
+restore_notif.cjs
+transcript_views.txt
+ui.xml
+ui_test.py
+update_*.cjs
+
+# Local tooling
+handle64.exe
+
+# Temporary / malformed files
+screens/
+creens*
+"-tree -r --name-only"*
+*-r --name-only*
+
+# Additional temporary patch files
+patch_mapscreen.js
+patch_serpentis.js
+
+# Documentation working files
+documentation/*.py
+documentation/*_Draft.*
+documentation/*_mod1.*
+documentation/*_mod2.*
+documentation/*_corr2.*
+documentation/SERPENTIS_FINAL.*
+documentation/SERPENTIS_FIXED.*
+documentation/SERPENTIS_Final_Report_Improved.*
+documentation/REPRINT_pages.pdf
+documentation/4_11.png
+documentation/4_12.png
+documentation/4_13.png
+documentation/new_4_1.png
+documentation/new_4_13.png
+documentation/new_4_9.png
+documentation/puml_4_9.png
+documentation/puml_4_9_new.png
+
+# Documentation working directories
+documentation/Telegram Desktop/
+documentation/diagrams/*.py

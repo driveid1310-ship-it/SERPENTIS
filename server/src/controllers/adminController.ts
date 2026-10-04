@@ -2,7 +2,6 @@ import { type Request, type Response, type NextFunction } from 'express';
 import Report from '../models/Report.js';
 import User from '../models/User.js';
 import Comment from '../models/Comment.js';
-
 export async function getDashboard(
   req: Request,
   res: Response,

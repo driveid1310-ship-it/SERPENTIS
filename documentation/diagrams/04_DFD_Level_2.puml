@@ -1,0 +1,27 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+title SERPENTIS Data Flow Diagram (Level 2) - Civic Reporting Engine
+
+rectangle "Citizen" as citizen
+rectangle "Cloudinary API" as cloudinary
+
+usecase "2.1 Capture Location & Data" as p21
+usecase "2.2 Upload Media" as p22
+usecase "2.3 Validate & Store Report" as p23
+usecase "2.4 Trigger Gamification" as p24
+
+database "D2: Reports" as d2
+database "D1: Users" as d1
+
+citizen --> p21
+p21 --> p22
+p22 --> cloudinary
+cloudinary --> p22
+p21 --> p23
+p22 --> p23
+p23 --> d2
+p23 --> p24
+p24 --> d1
+p23 --> citizen
+@enduml

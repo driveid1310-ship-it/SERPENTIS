@@ -8,10 +8,14 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { authTheme } from '../theme/authTheme';
+import { useTheme } from '../context/ThemeContext';
 import AuthHeader from '../components/AuthHeader/AuthHeader';
 import AuthField from '../components/AuthField/AuthField';
 import AuthButton from '../components/AuthButton/AuthButton';
+import {
+  AuthServiceError,
+  resetPassword,
+} from '../services/authService';
 
 type ResetPasswordScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -20,7 +24,10 @@ type ResetPasswordScreenProps = NativeStackScreenProps<
 
 export default function ResetPasswordScreen({
   navigation,
+  route,
 }: ResetPasswordScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -49,14 +56,22 @@ export default function ResetPasswordScreen({
     setError(null);
     setIsSubmitting(true);
 
-    // Integration point: call the future "reset password" API here once
-    // the backend exposes it, then navigate on success.
     try {
+      await resetPassword({
+        resetToken: route.params.resetToken,
+        newPassword,
+      });
       navigation.replace('PasswordResetSuccess');
+    } catch (resetError) {
+      setError(
+        resetError instanceof AuthServiceError
+          ? resetError.message
+          : 'Unable to reset your password. Please try again.',
+      );
     } finally {
       setIsSubmitting(false);
     }
-  }, [newPassword, confirmPassword, navigation]);
+  }, [confirmPassword, navigation, newPassword, route.params.resetToken]);
 
   return (
     <KeyboardAvoidingView
@@ -110,25 +125,25 @@ export default function ResetPasswordScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: authTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: authTheme.spacing.xxl,
-    paddingVertical: authTheme.spacing.xxxl,
+    paddingHorizontal: theme.spacing.xxl,
+    paddingVertical: theme.spacing.xxxl,
   },
   card: {
-    backgroundColor: authTheme.colors.glass,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.glassBorder,
-    borderRadius: authTheme.radius.xl,
-    padding: authTheme.spacing.xl,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
   },
   resetButton: {
-    marginTop: authTheme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
 });

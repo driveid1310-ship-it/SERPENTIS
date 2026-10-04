@@ -1,0 +1,33 @@
+@startuml
+skinparam monochrome true
+title Create Civic Report Activity Flow
+
+start
+:Select 'Create Report';
+:Fetch GPS Location;
+if (GPS Granted?) then (yes)
+  :Fill Form (Title, Category);
+  :Capture Image;
+  :Submit Form;
+  if (Inputs Valid?) then (yes)
+    :Transmit to API;
+    if (JWT Valid?) then (yes)
+      :Upload Image to Cloudinary;
+      :Save GeoJSON to MongoDB;
+      :Increment Trust Score;
+      :Return 201 Success;
+      stop
+    else (no)
+      :Return 401;
+      :Force Logout;
+      stop
+    endif
+  else (no)
+    :Show Validation Errors;
+    stop
+  endif
+else (no)
+  :Show Permission Error;
+  stop
+endif
+@enduml

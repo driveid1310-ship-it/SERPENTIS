@@ -1,5 +1,7 @@
 import React from 'react';
+import { NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -15,12 +17,48 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import OtpVerificationScreen from '../screens/OtpVerificationScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import PasswordResetSuccessScreen from '../screens/PasswordResetSuccessScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import PrivacySecurityScreen from '../screens/PrivacySecurityScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
+import MapTestScreen from '../screens/MapTestScreen';
+import MapScreen from '../screens/MapScreen';
+import ReportDetailsScreen from '../screens/ReportDetailsScreen';
+import CommunityScreen from '../screens/CommunityScreen';
+import CreateGroupScreen from '../screens/CreateGroupScreen';
+import GroupDetailsScreen from '../screens/GroupDetailsScreen';
+import GroupChatScreen from '../screens/GroupChatScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import DashboardScreen from '../screens/DashboardScreen';
+import ContributionHistoryScreen from '../screens/ContributionHistoryScreen';
+import BadgesScreen from '../screens/BadgesScreen';
+import ThemeScreen from '../screens/ThemeScreen';
+import DesignShowcaseScreen from '../screens/DesignShowcaseScreen';
+
+import { useTheme } from '../context/ThemeContext';
+import { Text, Platform } from 'react-native';
+
+export type MainTabParamList = {
+  HomeTab: undefined;
+  Map: {
+    targetPlace?: {
+      id: string;
+      name: string;
+      category: string;
+      coordinates: [number, number];
+      address?: string;
+    };
+  } | undefined;
+  ReportIssue: undefined;
+  Community: undefined;
+  Profile: undefined;
+};
 
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
   Signup: undefined;
-  Home: undefined;
+  Home: NavigatorScreenParams<MainTabParamList> | undefined;
+  HomeTab: undefined;
   ReportIssue: undefined;
   Places: undefined;
   SOS: undefined;
@@ -34,13 +72,95 @@ export type RootStackParamList = {
   };
 
   ResetPassword: {
-    email: string;
+    resetToken: string;
   };
 
   PasswordResetSuccess: undefined;
+  EditProfile: undefined;
+  PrivacySecurity: undefined;
+  HelpSupport: undefined;
+  MapTest: undefined;
+  ReportDetails: { reportId: string };
+  Community: undefined;
+  CreateGroup: undefined;
+  GroupDetails: { groupId: string };
+  GroupChat: { groupId: string; groupName: string };
+  Leaderboard: undefined;
+  Dashboard: undefined;
+  ContributionHistory: undefined;
+  Badges: undefined;
+  Theme: undefined;
+  DesignShowcase: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator();
+
+function MainTabs() {
+  const { theme } = useTheme();
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: '#0a0a0a', // near-black
+          borderTopColor: '#222222',
+          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: 'bold',
+          marginTop: 4,
+        }
+      }}
+    >
+      <Tab.Screen 
+        name="HomeTab" 
+        component={HomeScreen as any} 
+        options={{ 
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>⌂</Text>
+        }} 
+      />
+      <Tab.Screen 
+        name="Map" 
+        component={MapScreen as any} 
+        options={{ 
+          tabBarLabel: 'Map',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>📍</Text>
+        }} 
+      />
+      <Tab.Screen 
+        name="ReportIssue" 
+        component={ReportIssueScreen as any} 
+        options={{ 
+          tabBarLabel: 'Report',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24, fontWeight: 'bold', marginBottom: -2 }}>+</Text>
+        }} 
+      />
+      <Tab.Screen 
+        name="Community" 
+        component={CommunityScreen as any} 
+        options={{ 
+          tabBarLabel: 'Community',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>👥</Text>
+        }} 
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen as any} 
+        options={{ 
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>👤</Text>
+        }} 
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function AppNavigator() {
   return (
@@ -50,75 +170,38 @@ export default function AppNavigator() {
         headerShown: false,
       }}
     >
-      <Stack.Screen
-        name="Splash"
-        component={SplashScreen}
-      />
-
-      <Stack.Screen
-        name="Login"
-        component={LoginScreen}
-      />
-
-      <Stack.Screen
-        name="Signup"
-        component={SignupScreen}
-      />
-
-      <Stack.Screen
-        name="Home"
-        component={HomeScreen}
-      />
-
-      <Stack.Screen
-        name="ReportIssue"
-        component={ReportIssueScreen}
-      />
-
-      <Stack.Screen
-        name="Places"
-        component={PlacesScreen}
-      />
-
-      <Stack.Screen
-        name="SOS"
-        component={SosScreen}
-      />
-
-      <Stack.Screen
-        name="Notifications"
-        component={NotificationsScreen}
-      />
-
-      <Stack.Screen
-        name="Heritage"
-        component={HeritageScreen}
-      />
-
-      <Stack.Screen
-        name="Profile"
-        component={ProfileScreen}
-      />
-
-      <Stack.Screen
-        name="ForgotPassword"
-        component={ForgotPasswordScreen}
-      />
-
-      <Stack.Screen
-        name="OtpVerification"
-        component={OtpVerificationScreen}
-      />
-
-      <Stack.Screen
-        name="ResetPassword"
-        component={ResetPasswordScreen}
-      />
-
-      <Stack.Screen
-        name="PasswordResetSuccess"
-        component={PasswordResetSuccessScreen}
-      />
+      <Stack.Screen name="MapTest" component={MapTestScreen} />
+      <Stack.Screen name="ReportDetails" component={ReportDetailsScreen} />
+      <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+      <Stack.Screen name="GroupDetails" component={GroupDetailsScreen} />
+      <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+      <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      <Stack.Screen name="ContributionHistory" component={ContributionHistoryScreen} />
+      <Stack.Screen name="Badges" component={BadgesScreen} />
+      <Stack.Screen name="Theme" component={ThemeScreen} />
+      <Stack.Screen name="DesignShowcase" component={DesignShowcaseScreen} />
+      
+      <Stack.Screen name="Splash" component={SplashScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Signup" component={SignupScreen} />
+      
+      {/* Home is now the Tab Navigator */}
+      <Stack.Screen name="Home" component={MainTabs} />
+      
+      <Stack.Screen name="Places" component={PlacesScreen} />
+      <Stack.Screen name="SOS" component={SosScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="Heritage" component={HeritageScreen} />
+      
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+      
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen name="PasswordResetSuccess" component={PasswordResetSuccessScreen} />
     </Stack.Navigator>
   );
 }

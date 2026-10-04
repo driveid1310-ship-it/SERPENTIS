@@ -1,0 +1,17 @@
+@startuml
+skinparam monochrome true
+title SOS Emergency Broadcast Collaboration
+
+object "1: Citizen" as U1
+object "2: SOS Screen" as UI
+object "3: SOS Controller" as API
+object "4: Socket Engine" as SIO
+object "5: Database" as DB
+object "6: Nearby Citizens" as U2
+
+U1 -> UI : 1. Trigger SOS
+UI -> API : 2. POST /api/sos
+API -> DB : 3. Insert SOS Record
+API -> SIO : 4. emit('sos_alert')
+SIO -> U2 : 5. broadcast('sos_alert')
+@enduml

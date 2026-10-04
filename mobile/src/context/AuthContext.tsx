@@ -67,6 +67,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [clearSession]);
 
+  // Re-fetches the current user via the same GET /auth/me path already
+  // used during session restore, so screens can pick up server-side
+  // changes (e.g. trustScore updates) without a full logout/login cycle.
+  // Failures are silently ignored — this is a background refresh, not a
+  // session-validity check, so it must not trigger a logout on failure.
+  const refreshUser = useCallback(async () => {
+    try {
+      const currentUser = await authService.getCurrentUser();
+      setUser(currentUser);
+    } catch {
+      // Intentionally silent — leave existing user state untouched.
+    }
+  }, []);
+
   // Register the 401 handler exactly once so the Axios interceptor can
   // trigger a logout without config/axios.ts importing this context.
   useEffect(() => {
@@ -129,8 +143,9 @@ restoreSession().catch(console.error);
       login,
       register,
       logout,
+      refreshUser,
     }),
-    [user, token, loading, isAuthenticated, login, register, logout],
+    [user, token, loading, isAuthenticated, login, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,0 +1,56 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+title SERPENTIS System Use Case Diagram
+
+left to right direction
+
+actor "Citizen" as citizen
+actor "Moderator" as moderator
+
+moderator -|> citizen
+
+rectangle "SERPENTIS Application" {
+    usecase "Register / Login" as UC1
+    usecase "Password Reset (OTP)" as UC2
+    usecase "Manage Profile" as UC3
+    
+    usecase "Create Civic Report" as UC4
+    usecase "Add Location/GPS" as UC4a
+    usecase "Upload Report Image" as UC4b
+    
+    usecase "View Reports" as UC5
+    usecase "Interact with Reports" as UC6
+    usecase "Verify Report" as UC7
+    
+    usecase "Broadcast SOS Alert" as UC8
+    usecase "View Map" as UC9
+    usecase "Find Public Services/Places" as UC10
+    
+    usecase "Community Groups" as UC11
+    usecase "Chat (Socket.IO)" as UC12
+    
+    usecase "View Dashboard" as UC13
+    usecase "View Leaderboard" as UC14
+}
+
+citizen --> UC1
+citizen --> UC2
+citizen --> UC3
+citizen --> UC4
+citizen --> UC5
+citizen --> UC6
+citizen --> UC8
+citizen --> UC9
+citizen --> UC10
+citizen --> UC11
+citizen --> UC12
+citizen --> UC13
+citizen --> UC14
+
+moderator --> UC7
+
+UC4 ..> UC4a : <<include>>
+UC4 ..> UC4b : <<include>>
+
+@enduml

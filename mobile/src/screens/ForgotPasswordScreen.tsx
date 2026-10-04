@@ -9,10 +9,14 @@ import {
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { authTheme } from '../theme/authTheme';
+import { useTheme } from '../context/ThemeContext';
 import AuthHeader from '../components/AuthHeader/AuthHeader';
 import AuthField from '../components/AuthField/AuthField';
 import AuthButton from '../components/AuthButton/AuthButton';
+import {
+  AuthServiceError,
+  requestPasswordReset,
+} from '../services/authService';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<
@@ -27,6 +31,8 @@ interface ForgotPasswordScreenProps {
 export default function ForgotPasswordScreen({
   navigation,
 }: ForgotPasswordScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,10 +52,15 @@ export default function ForgotPasswordScreen({
     setError(null);
     setIsSubmitting(true);
 
-    // Integration point: call the future "request password reset" API here
-    // once the backend exposes it, then navigate on success.
     try {
+      await requestPasswordReset(trimmedEmail);
       navigation.navigate('OtpVerification', { email: trimmedEmail });
+    } catch (requestError) {
+      setError(
+        requestError instanceof AuthServiceError
+          ? requestError.message
+          : 'Unable to request a password reset. Please try again.',
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -104,32 +115,32 @@ export default function ForgotPasswordScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: authTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: authTheme.spacing.xxl,
-    paddingVertical: authTheme.spacing.xxxl,
+    paddingHorizontal: theme.spacing.xxl,
+    paddingVertical: theme.spacing.xxxl,
   },
   card: {
-    backgroundColor: authTheme.colors.glass,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.glassBorder,
-    borderRadius: authTheme.radius.xl,
-    padding: authTheme.spacing.xl,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
   },
   submitButton: {
-    marginTop: authTheme.spacing.sm,
-    marginBottom: authTheme.spacing.lg,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
   },
   backLinkText: {
-    fontSize: authTheme.typography.fontSizes.sm,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.accent,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.primary,
     textAlign: 'center',
   },
 });

@@ -8,20 +8,30 @@ import {
   deleteReport,
   upvoteReport,
   removeUpvote,
+  toggleObservation,
   updateReportStatus,
   updateReportPriority,
   searchReports,
   verifyReport,
+  getCityStats,
 } from '../controllers/reportController.js';
+import { uploadReportImage as uploadReportImageController } from '../controllers/reportImageController.js';
 
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { authorizeRoles } from '../middleware/roleMiddleware.js';
+import { uploadReportImage } from '../middleware/uploadMiddleware.js';
 
 const router = Router();
 
 // ===============================
 // Create Report
 // ===============================
+router.post(
+  '/upload-image',
+  authMiddleware,
+  uploadReportImage,
+  uploadReportImageController,
+);
 router.post('/', authMiddleware, createReport);
 
 // ===============================
@@ -34,6 +44,9 @@ router.get('/near', getNearbyReports);
 
 // Search Reports
 router.get('/search', searchReports);
+
+// City Stats
+router.get('/stats', getCityStats);
 
 // ===============================
 // Moderator Routes
@@ -60,10 +73,11 @@ router.patch(
 );
 
 // ===============================
-// Upvote Routes
+// Upvote & Observation Routes
 // ===============================
 router.post('/:id/upvote', authMiddleware, upvoteReport);
 router.delete('/:id/upvote', authMiddleware, removeUpvote);
+router.post('/:id/observe', authMiddleware, toggleObservation);
 
 // ===============================
 // Get Single Report

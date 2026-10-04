@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StatusBar, Text, StyleSheet, View } from 'react-native';
+import { StatusBar, Text, StyleSheet, View, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Animated, {
@@ -16,9 +16,12 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../hooks/useAuth';
-import { authTheme } from '../theme/authTheme';
+import { themes } from '../theme/themes';
+
+const theme = themes.futuristic;
 
 export default function SplashScreen() {
+
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isAuthenticated, loading } = useAuth();
@@ -26,8 +29,7 @@ export default function SplashScreen() {
   const titleOpacity = useSharedValue(0);
   const titleTranslateY = useSharedValue(16);
   const glowIntensity = useSharedValue(0.3);
-  const subtitleOpacity = useSharedValue(0);
-  const frameOpacity = useSharedValue(0);
+    const frameOpacity = useSharedValue(0);
 
   const dotOpacity0 = useSharedValue(0.3);
   const dotOpacity1 = useSharedValue(0.3);
@@ -73,34 +75,7 @@ export default function SplashScreen() {
       ),
     );
 
-    subtitleOpacity.value = withDelay(
-      500,
-      withTiming(1, {
-        duration: 800,
-        easing: Easing.out(Easing.ease),
-      }),
-    );
-
-    dotOpacities.forEach((dot, index) => {
-      dot.value = withDelay(
-        index * 180,
-        withRepeat(
-          withSequence(
-            withTiming(1, {
-              duration: 450,
-              easing: Easing.inOut(Easing.ease),
-            }),
-            withTiming(0.25, {
-              duration: 450,
-              easing: Easing.inOut(Easing.ease),
-            }),
-          ),
-          -1,
-          true,
-        ),
-      );
-    });
-
+    
     const timer = setTimeout(() => {
       setMinDurationElapsed(true);
     }, 2500);
@@ -110,8 +85,7 @@ export default function SplashScreen() {
     titleOpacity,
     titleTranslateY,
     glowIntensity,
-    subtitleOpacity,
-    frameOpacity,
+        frameOpacity,
     dotOpacities,
   ]);
 
@@ -141,10 +115,7 @@ export default function SplashScreen() {
     opacity: frameOpacity.value,
   }));
 
-  const subtitleAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: subtitleOpacity.value,
-  }));
-
+  
   const dotAnimatedStyle0 = useAnimatedStyle(() => ({
     opacity: dotOpacities[0].value,
   }));
@@ -162,8 +133,8 @@ export default function SplashScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="dark-content"
-        backgroundColor={authTheme.colors.background}
+        barStyle="light-content"
+        backgroundColor={theme.colors.background}
       />
 
       <View style={styles.centerContent}>
@@ -178,18 +149,21 @@ export default function SplashScreen() {
             <View style={[styles.bracket, styles.bracketBottomRight]} />
           </Animated.View>
 
-          <Animated.View style={[styles.glowLayer, glowAnimatedStyle]}>
-            <Text style={styles.titleGlowText}>SERPENTIS</Text>
-          </Animated.View>
+          
 
-          <Animated.View style={titleAnimatedStyle}>
+          <Animated.View style={[titleAnimatedStyle, { alignItems: 'center', gap: 16 }]}>
+            <Animated.View style={glowAnimatedStyle}>
+              <Image 
+              source={require('../assets/images/serpentis-logo-transparent.png')} 
+              style={{ width: 80, height: 80, tintColor: theme.colors.text }}
+              resizeMode="contain" 
+            />
+            </Animated.View>
             <Text style={styles.titleText}>SERPENTIS</Text>
           </Animated.View>
         </View>
 
-        <Animated.Text style={[styles.subtitleText, subtitleAnimatedStyle]}>
-          Community-Powered Civic Reporting
-        </Animated.Text>
+        
       </View>
 
       <View style={styles.loaderContainer}>
@@ -210,14 +184,14 @@ export default function SplashScreen() {
   );
 }
 
-const BRACKET_SIZE = 18;
+const BRACKET_SIZE = 12;
 const BRACKET_THICKNESS = 2;
-const BRACKET_INSET = -28;
+const BRACKET_INSET = -40;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: authTheme.colors.background,
+    backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -240,7 +214,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: BRACKET_SIZE,
     height: BRACKET_SIZE,
-    borderColor: authTheme.colors.accent,
+    borderColor: theme.colors.accent,
+    shadowColor: theme.colors.accent,
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
   },
   bracketTopLeft: {
     top: 0,
@@ -273,8 +252,8 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: '800',
     letterSpacing: 6,
-    color: authTheme.colors.accent,
-    textShadowColor: authTheme.colors.accent,
+    color: theme.colors.accent,
+    textShadowColor: theme.colors.accent,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 24,
   },
@@ -282,19 +261,12 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: '800',
     letterSpacing: 6,
-    color: authTheme.colors.textPrimary,
-    textShadowColor: authTheme.colors.accent,
+    color: theme.colors.text,
+    textShadowColor: theme.colors.accent,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
-  subtitleText: {
-    marginTop: 14,
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 2,
-    color: authTheme.colors.textSecondary,
-    textTransform: 'uppercase',
-  },
+  
   loaderContainer: {
     position: 'absolute',
     bottom: 56,
@@ -308,7 +280,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: authTheme.colors.accent,
+    backgroundColor: theme.colors.accent,
   },
   dotSpacing: {
     marginRight: 10,

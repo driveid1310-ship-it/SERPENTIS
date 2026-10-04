@@ -1,5 +1,6 @@
-import React from 'react';
-import {
+import React, { useCallback } from 'react';
+import { Image,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,21 +8,21 @@ import {
   View,
 } from 'react-native';
 
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import Screen from '../components/Screen/Screen';
 import { useAuth } from '../hooks/useAuth';
-import { authTheme } from '../theme/authTheme';
+import { useTrendingReports } from '../hooks/useTrendingReports';
+import { useRecentReports } from '../hooks/useRecentReports';
+import { useNotifications } from '../hooks/useNotifications';
+import type { ReportStatus } from '../types/report';
+import { useTheme } from '../context/ThemeContext';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const quickActions = [
-  {
-    title: 'Report Issue',
-    subtitle: 'Report a civic problem',
-    icon: '!',
-  },
   {
     title: 'SOS',
     subtitle: 'Get emergency help',
@@ -32,41 +33,79 @@ const quickActions = [
     subtitle: 'Explore nearby places',
     icon: '⌖',
   },
-  {
-    title: 'Services',
-    subtitle: 'Find public services',
-    icon: '✓',
-  },
+  { title: 'Dashboard', subtitle: 'City statistics', icon: '📊' },
 ];
 
-const nearbyIssues = [
-  {
-    title: 'Road damage',
-    location: '0.8 km away',
-    status: 'In progress',
-  },
-  {
-    title: 'Street light outage',
-    location: '1.2 km away',
-    status: 'Reported',
-  },
-];
+const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
+  pending: 'Pending',
+  'in-progress': 'In Progress',
+  resolved: 'Resolved',
+  rejected: 'Rejected',
+};
 
-const trendingIssues = [
-  {
-    title: 'Water supply interruption',
-    reports: '24 reports',
-  },
-  {
-    title: 'Traffic signal issue',
-    reports: '17 reports',
-  },
-];
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+// Smallest safe relative-time formatter — no new dependency, plain Date
+// math only, same approach already used on Notifications/SOS.
+function formatRelativeTime(createdAt: string): string {
+  const createdTimestamp = new Date(createdAt).getTime();
+
+  if (Number.isNaN(createdTimestamp)) {
+    return '';
+  }
+
+  const elapsedMs = Date.now() - createdTimestamp;
+
+  if (elapsedMs < MINUTE_MS) {
+    return 'Just now';
+  }
+  if (elapsedMs < HOUR_MS) {
+    return `${Math.floor(elapsedMs / MINUTE_MS)}m ago`;
+  }
+  if (elapsedMs < DAY_MS) {
+    return `${Math.floor(elapsedMs / HOUR_MS)}h ago`;
+  }
+  return `${Math.floor(elapsedMs / DAY_MS)}d ago`;
+}
 
 export default function HomeScreen({
   navigation,
 }: HomeScreenProps) {
-  const { user } = useAuth();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
+  const { user, refreshUser } = useAuth();
+  const {
+    status: trendingStatus,
+    reports: trendingReports,
+    toggleUpvote,
+    refetch: refetchTrending,
+  } = useTrendingReports();
+  const {
+    status: recentStatus,
+    reports: recentReports,
+    refetch: refetchRecent,
+  } = useRecentReports();
+  const { notifications, refetch: refetchNotifications } = useNotifications();
+
+  const unreadNotificationCount = notifications.filter(
+    (notification) => !notification.isRead,
+  ).length;
+
+  // Both report hooks and the notifications hook fetch once on mount only.
+  // Without this, returning to Home after submitting a new report (or
+  // reading notifications elsewhere) would keep showing stale data until
+  // the app fully remounts. refreshUser() re-fetches the current user via
+  // the same GET /auth/me path, so Trust Score updates too.
+  useFocusEffect(
+    useCallback(() => {
+      refetchTrending();
+      refetchRecent();
+      refetchNotifications();
+      refreshUser().catch(() => {});
+    }, [refetchTrending, refetchRecent, refetchNotifications, refreshUser]),
+  );
 
   const firstName = user?.fullName?.split(' ')[0] || 'Citizen';
 
@@ -79,7 +118,14 @@ export default function HomeScreen({
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.eyebrow}>SERPENTIS</Text>
+            <View style={styles.brandLockup}>
+              <Image 
+                source={require('../assets/images/serpentis-logo-transparent.png')} 
+                style={styles.headerLogo}
+                resizeMode="contain" 
+              />
+              <Text style={styles.eyebrow}>SERPENTIS</Text>
+            </View>
             <Text style={styles.greeting}>Hello, {firstName}</Text>
             <Text style={styles.subtitle}>
               Stay informed. Stay connected.
@@ -97,20 +143,15 @@ export default function HomeScreen({
               accessibilityLabel="Notifications"
             >
               <Text style={styles.notificationIcon}>{'\uD83D\uDD14'}</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => navigation.navigate('Profile')}
-              style={({ pressed }) => [
-                styles.profileButton,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Profile"
-            >
-              <Text style={styles.profileInitial}>
-                {firstName.charAt(0).toUpperCase()}
-              </Text>
+              {unreadNotificationCount > 0 ? (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadNotificationCount > 9
+                      ? '9+'
+                      : unreadNotificationCount}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         </View>
@@ -124,19 +165,32 @@ export default function HomeScreen({
             </View>
 
             <View style={styles.scoreCircle}>
-              <Text style={styles.scoreValue}>82</Text>
+              <Text style={styles.scoreValue}>{user?.trustScore ?? 0}</Text>
               <Text style={styles.scoreLabel}>/100</Text>
             </View>
           </View>
 
           <View style={styles.progressTrack}>
-            <View style={styles.progressFill} />
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${Math.min(
+                    Math.max(user?.trustScore ?? 0, 0),
+                    100,
+                  )}%`,
+                },
+              ]}
+            />
           </View>
 
           <Text style={styles.trustDescription}>
             Your reports and community activity are helping make the
             neighbourhood better.
           </Text>
+          <Pressable onPress={() => navigation.navigate('Leaderboard')} style={styles.leaderboardLink}>
+            <Text style={styles.leaderboardLinkText}>View Leaderboard →</Text>
+          </Pressable>
         </View>
 
         {/* Quick Actions */}
@@ -154,14 +208,14 @@ export default function HomeScreen({
             <Pressable
               key={action.title}
               onPress={() => {
-                if (action.title === 'Report Issue') {
-                  navigation.navigate('ReportIssue');
-                }
                 if (action.title === 'Places') {
                   navigation.navigate('Places');
                 }
                 if (action.title === 'SOS') {
                   navigation.navigate('SOS');
+                }
+                if (action.title === 'Dashboard') {
+                  navigation.navigate('Dashboard');
                 }
               }}
               style={({ pressed }) => [
@@ -181,36 +235,56 @@ export default function HomeScreen({
           ))}
         </View>
 
-        {/* Nearby Issues */}
+        {/* Recent Reports */}
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionTitle}>Nearby Issues</Text>
+            <Text style={styles.sectionTitle}>Recent Reports</Text>
             <Text style={styles.sectionSubtitle}>
-              Recent activity around you
+              Latest reports from the community
             </Text>
           </View>
 
           <Text style={styles.viewAll}>View all</Text>
         </View>
 
-        {nearbyIssues.map((issue) => (
-          <View key={issue.title} style={styles.issueCard}>
-            <View style={styles.issueIcon}>
-              <Text style={styles.issueIconText}>!</Text>
-            </View>
-
-            <View style={styles.issueContent}>
-              <Text style={styles.issueTitle}>{issue.title}</Text>
-              <Text style={styles.issueLocation}>
-                {issue.location}
-              </Text>
-            </View>
-
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>{issue.status}</Text>
-            </View>
+        {recentStatus === 'loading' ? (
+          <View style={styles.trendingLoadingRow}>
+            <ActivityIndicator color={theme.colors.primary} />
           </View>
-        ))}
+        ) : null}
+
+        {recentStatus === 'empty' ? (
+          <Text style={styles.sectionSubtitle}>No recent reports yet.</Text>
+        ) : null}
+
+        {recentStatus === 'success'
+          ? recentReports.map((report) => (
+              <Pressable
+                key={report._id}
+                style={styles.issueCard}
+                onPress={() =>
+                  navigation.navigate('ReportDetails', { reportId: report._id })
+                }
+              >
+                <View style={styles.issueIcon}>
+                  <Text style={styles.issueIconText}>!</Text>
+                </View>
+
+                <View style={styles.issueContent}>
+                  <Text style={styles.issueTitle}>{report.title}</Text>
+                  <Text style={styles.issueLocation}>
+                    {formatRelativeTime(report.createdAt)}
+                  </Text>
+                </View>
+
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusText}>
+                    {REPORT_STATUS_LABELS[report.status]}
+                  </Text>
+                </View>
+              </Pressable>
+            ))
+          : null}
 
         {/* Trending */}
         <View style={styles.sectionHeader}>
@@ -222,26 +296,67 @@ export default function HomeScreen({
           </View>
         </View>
 
-        {trendingIssues.map((issue, index) => (
-          <View key={issue.title} style={styles.trendingCard}>
-            <View style={styles.trendingNumber}>
-              <Text style={styles.trendingNumberText}>
-                {index + 1}
-              </Text>
-            </View>
-
-            <View style={styles.trendingContent}>
-              <Text style={styles.trendingTitle}>
-                {issue.title}
-              </Text>
-              <Text style={styles.trendingReports}>
-                {issue.reports}
-              </Text>
-            </View>
-
-            <Text style={styles.arrow}>›</Text>
+        {trendingStatus === 'loading' ? (
+          <View style={styles.trendingLoadingRow}>
+            <ActivityIndicator color={theme.colors.primary} />
           </View>
-        ))}
+        ) : null}
+
+        {trendingStatus === 'empty' ? (
+          <Text style={styles.sectionSubtitle}>No trending reports yet.</Text>
+        ) : null}
+
+        {trendingStatus === 'success'
+          ? trendingReports.map((report, index) => {
+              const hasUpvoted = Boolean(
+                user && report.upvotes.includes(user.id),
+              );
+              return (
+                <Pressable
+                  key={report._id}
+                  style={styles.trendingCard}
+                  onPress={() =>
+                    navigation.navigate('ReportDetails', {
+                      reportId: report._id,
+                    })
+                  }
+                >
+                  <View style={styles.trendingNumber}>
+                    <Text style={styles.trendingNumberText}>
+                      {index + 1}
+                    </Text>
+                  </View>
+
+                  <View style={styles.trendingContent}>
+                    <Text style={styles.trendingTitle}>
+                      {report.title}
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    style={styles.upvoteButton}
+                    disabled={!user}
+                    onPress={async (e) => {
+                      e.stopPropagation(); // Prevent navigating to report details
+                      if (!user) {
+                        return;
+                      }
+                      await toggleUpvote(report, user.id);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.trendingReports,
+                        hasUpvoted && styles.trendingReportsActive,
+                      ]}
+                    >
+                      {hasUpvoted ? '▲' : '△'} {report.upvotes.length}
+                    </Text>
+                  </Pressable>
+                </Pressable>
+              );
+            })
+          : null}
 
         {/* Heritage */}
         <View style={styles.heritageCard}>
@@ -280,44 +395,55 @@ export default function HomeScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   scrollContent: {
-    paddingHorizontal: authTheme.spacing.lg,
-    paddingTop: authTheme.spacing.lg,
-    paddingBottom: authTheme.spacing.xxxl,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxxl,
   },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: authTheme.spacing.xl,
+    marginBottom: theme.spacing.xl,
   },
 
+  brandLockup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  headerLogo: {
+    width: 16,
+    height: 16,
+    marginRight: 6,
+    tintColor: theme.colors.text,
+  },
   eyebrow: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    fontWeight: authTheme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.bold,
     letterSpacing: 2,
-    color: authTheme.colors.accent,
-    marginBottom: authTheme.spacing.xs,
+    color: theme.colors.primary,
+    marginBottom: theme.spacing.xs,
   },
 
   greeting: {
-    fontSize: authTheme.typography.h2,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.textPrimary,
+    fontSize: theme.typography.h2,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.text,
   },
 
   subtitle: {
-    marginTop: authTheme.spacing.xs,
-    fontSize: authTheme.typography.fontSizes.sm,
-    color: authTheme.colors.textSecondary,
+    marginTop: theme.spacing.xs,
+    fontSize: theme.typography.fontSizes.sm,
+    color: theme.colors.textSecondary,
   },
 
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: authTheme.spacing.sm,
+    gap: theme.spacing.sm,
   },
 
   notificationButton: {
@@ -326,13 +452,33 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: authTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.border,
+    borderColor: theme.colors.border,
+    position: 'relative',
   },
 
   notificationIcon: {
-    fontSize: authTheme.typography.fontSizes.md,
+    fontSize: theme.typography.fontSizes.md,
+  },
+
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: theme.colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  notificationBadgeText: {
+    fontSize: 10,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.white,
   },
 
   profileButton: {
@@ -341,15 +487,15 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: authTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.border,
+    borderColor: theme.colors.border,
   },
 
   profileInitial: {
-    fontSize: authTheme.typography.fontSizes.md,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.accent,
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.primary,
   },
 
   pressed: {
@@ -357,12 +503,12 @@ const styles = StyleSheet.create({
   },
 
   trustCard: {
-    backgroundColor: authTheme.colors.glass,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.glassBorder,
-    borderRadius: authTheme.radius.xl,
-    padding: authTheme.spacing.xl,
-    marginBottom: authTheme.spacing.xxl,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
+    marginBottom: theme.spacing.xxl,
   },
 
   trustTopRow: {
@@ -372,17 +518,17 @@ const styles = StyleSheet.create({
   },
 
   cardEyebrow: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    fontWeight: authTheme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.bold,
     letterSpacing: 1.5,
-    color: authTheme.colors.textSecondary,
-    marginBottom: authTheme.spacing.xs,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.xs,
   },
 
   trustTitle: {
-    fontSize: authTheme.typography.h3,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.textPrimary,
+    fontSize: theme.typography.h3,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.text,
   },
 
   scoreCircle: {
@@ -392,67 +538,73 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: authTheme.colors.accent,
+    borderColor: theme.colors.primary,
   },
 
   scoreValue: {
-    fontSize: authTheme.typography.h2,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.textPrimary,
+    fontSize: theme.typography.h2,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.text,
   },
 
   scoreLabel: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
     marginTop: -4,
   },
 
   progressTrack: {
     height: 7,
     borderRadius: 4,
-    backgroundColor: authTheme.colors.border,
+    backgroundColor: theme.colors.border,
     overflow: 'hidden',
-    marginTop: authTheme.spacing.lg,
+    marginTop: theme.spacing.lg,
   },
 
   progressFill: {
-    width: '82%',
     height: '100%',
-    backgroundColor: authTheme.colors.accent,
+    backgroundColor: theme.colors.primary,
     borderRadius: 4,
   },
 
   trustDescription: {
-    marginTop: authTheme.spacing.md,
-    fontSize: authTheme.typography.fontSizes.sm,
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.fontSizes.sm,
     lineHeight: 20,
-    color: authTheme.colors.textSecondary,
+    color: theme.colors.textSecondary,
+  },
+  leaderboardLink: {
+    marginTop: 12,
+  },
+  leaderboardLinkText: {
+    color: theme.colors.primary,
+    fontWeight: 'bold',
   },
 
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: authTheme.spacing.md,
-    marginTop: authTheme.spacing.lg,
+    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.lg,
   },
 
   sectionTitle: {
-    fontSize: authTheme.typography.h3,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.textPrimary,
+    fontSize: theme.typography.h3,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.text,
   },
 
   sectionSubtitle: {
     marginTop: 3,
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
   },
 
   viewAll: {
-    fontSize: authTheme.typography.fontSizes.xs,
-    fontWeight: authTheme.typography.fontWeights.semibold,
-    color: authTheme.colors.accent,
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.medium,
+    color: theme.colors.textSecondary,
   },
 
   actionsGrid: {
@@ -464,52 +616,52 @@ const styles = StyleSheet.create({
   actionCard: {
     width: '48%',
     minHeight: 145,
-    padding: authTheme.spacing.lg,
-    marginBottom: authTheme.spacing.md,
-    borderRadius: authTheme.radius.lg,
-    backgroundColor: authTheme.colors.surface,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.border,
+    borderColor: theme.colors.border,
   },
 
   actionIcon: {
     width: 42,
     height: 42,
-    borderRadius: authTheme.radius.md,
+    borderRadius: theme.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: authTheme.colors.accentMuted,
-    marginBottom: authTheme.spacing.md,
+    backgroundColor: theme.colors.primaryMuted,
+    marginBottom: theme.spacing.md,
   },
 
   actionIconText: {
-    fontSize: authTheme.typography.fontSizes.md,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.accent,
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.primary,
   },
 
   actionTitle: {
-    fontSize: authTheme.typography.fontSizes.md,
-    fontWeight: authTheme.typography.fontWeights.semibold,
-    color: authTheme.colors.textPrimary,
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.text,
   },
 
   actionSubtitle: {
-    marginTop: authTheme.spacing.xs,
-    fontSize: authTheme.typography.fontSizes.xs,
+    marginTop: theme.spacing.xs,
+    fontSize: theme.typography.fontSizes.xs,
     lineHeight: 17,
-    color: authTheme.colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
 
   issueCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: authTheme.spacing.md,
-    marginBottom: authTheme.spacing.sm,
-    borderRadius: authTheme.radius.lg,
-    backgroundColor: authTheme.colors.surface,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.border,
+    borderColor: theme.colors.border,
   },
 
   issueIcon: {
@@ -518,14 +670,14 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: authTheme.colors.errorMuted,
-    marginRight: authTheme.spacing.md,
+    backgroundColor: theme.colors.error + "20",
+    marginRight: theme.spacing.md,
   },
 
   issueIconText: {
-    fontSize: authTheme.typography.fontSizes.md,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.error,
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.error,
   },
 
   issueContent: {
@@ -533,39 +685,45 @@ const styles = StyleSheet.create({
   },
 
   issueTitle: {
-    fontSize: authTheme.typography.fontSizes.sm,
-    fontWeight: authTheme.typography.fontWeights.semibold,
-    color: authTheme.colors.textPrimary,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.text,
   },
 
   issueLocation: {
     marginTop: 3,
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
   },
 
   statusBadge: {
-    paddingHorizontal: authTheme.spacing.sm,
-    paddingVertical: authTheme.spacing.xs,
-    borderRadius: authTheme.radius.round,
-    backgroundColor: authTheme.colors.accentMuted,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.round,
+    backgroundColor: theme.colors.primaryMuted,
   },
 
   statusText: {
     fontSize: 10,
-    fontWeight: authTheme.typography.fontWeights.semibold,
-    color: authTheme.colors.accent,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.primary,
+  },
+
+  trendingLoadingRow: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
 
   trendingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: authTheme.spacing.md,
-    marginBottom: authTheme.spacing.sm,
-    borderRadius: authTheme.radius.lg,
-    backgroundColor: authTheme.colors.surface,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.border,
+    borderColor: theme.colors.border,
   },
 
   trendingNumber: {
@@ -574,14 +732,14 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: authTheme.colors.accentMuted,
-    marginRight: authTheme.spacing.md,
+    backgroundColor: theme.colors.primaryMuted,
+    marginRight: theme.spacing.md,
   },
 
   trendingNumberText: {
-    fontSize: authTheme.typography.fontSizes.sm,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.accent,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.primary,
   },
 
   trendingContent: {
@@ -589,89 +747,79 @@ const styles = StyleSheet.create({
   },
 
   trendingTitle: {
-    fontSize: authTheme.typography.fontSizes.sm,
-    fontWeight: authTheme.typography.fontWeights.semibold,
-    color: authTheme.colors.textPrimary,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.text,
   },
 
   trendingReports: {
-    marginTop: 3,
-    fontSize: authTheme.typography.fontSizes.xs,
-    color: authTheme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.textSecondary,
   },
 
-  arrow: {
-    fontSize: 28,
-    color: authTheme.colors.textSecondary,
-    marginLeft: authTheme.spacing.sm,
+  trendingReportsActive: {
+    color: theme.colors.primary,
   },
-
+  upvoteButton: {
+    padding: theme.spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   heritageCard: {
-    marginTop: authTheme.spacing.xl,
-    padding: authTheme.spacing.xl,
-    borderRadius: authTheme.radius.xl,
-    backgroundColor: authTheme.colors.glass,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: authTheme.colors.glassBorder,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
+    marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
-
   heritageBadge: {
+    backgroundColor: theme.colors.primaryMuted,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.sm,
     alignSelf: 'flex-start',
-    paddingHorizontal: authTheme.spacing.sm,
-    paddingVertical: authTheme.spacing.xs,
-    borderRadius: authTheme.radius.round,
-    backgroundColor: authTheme.colors.accentMuted,
-    marginBottom: authTheme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
-
   heritageBadgeText: {
-    fontSize: 10,
-    fontWeight: authTheme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.primary,
     letterSpacing: 1,
-    color: authTheme.colors.accent,
   },
-
   heritageTitle: {
-    fontSize: authTheme.typography.h3,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.textPrimary,
+    fontSize: theme.typography.h3,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
   },
-
   heritageDescription: {
-    marginTop: authTheme.spacing.sm,
-    fontSize: authTheme.typography.fontSizes.sm,
+    fontSize: theme.typography.fontSizes.sm,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.lg,
     lineHeight: 20,
-    color: authTheme.colors.textSecondary,
   },
-
   heritageButton: {
-    marginTop: authTheme.spacing.lg,
-    minHeight: 46,
-    paddingHorizontal: authTheme.spacing.lg,
-    borderRadius: authTheme.radius.md,
-    backgroundColor: authTheme.colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-
   heritageButtonText: {
-    fontSize: authTheme.typography.fontSizes.sm,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.background,
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.primary,
+    marginRight: theme.spacing.xs,
   },
-
   heritageArrow: {
-    marginLeft: authTheme.spacing.sm,
-    fontSize: 18,
-    fontWeight: authTheme.typography.fontWeights.bold,
-    color: authTheme.colors.background,
+    fontSize: theme.typography.fontSizes.md,
+    color: theme.colors.primary,
   },
-
   footerText: {
-    marginTop: authTheme.spacing.xxl,
     textAlign: 'center',
-    fontSize: 10,
-    color: authTheme.colors.placeholder,
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.md,
   },
 });

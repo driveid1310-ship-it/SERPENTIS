@@ -559,6 +559,13 @@ export async function updateReport(
         });
         return;
       }
+      if (status === 'in-progress' || status === 'rejected') {
+        res.status(403).json({
+          success: false,
+          message: 'Creators cannot mark reports as in-progress or rejected.',
+        });
+        return;
+      }
       existingReport.status = status;
     }
 
@@ -583,28 +590,6 @@ export async function updateReport(
         return;
       }
       existingReport.images = images;
-    }
-
-    if (priority !== undefined) {
-      if (!VALID_PRIORITIES.includes(priority)) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid priority provided.',
-        });
-        return;
-      }
-      existingReport.priority = priority;
-    }
-
-    if (isDuplicate !== undefined) {
-      if (typeof isDuplicate !== 'boolean') {
-        res.status(400).json({
-          success: false,
-          message: 'isDuplicate must be a boolean value.',
-        });
-        return;
-      }
-      existingReport.isDuplicate = isDuplicate;
     }
 
     const updatedReport = await existingReport.save();
@@ -875,23 +860,23 @@ export async function updateReportStatus(
 ): Promise<void> {
   try {
     const { id } = req.params;
-    const status = req.body?.status;
+    const { status } = req.body;
 
-  if (typeof status !== "string") {
-  res.status(400).json({
-    success: false,
-    message: "Status is required.",
-  });
-  return;
-  }
+    if (!isValidObjectId(id)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid report ID.',
+      });
+      return;
+    }
 
-  if (!VALID_STATUSES.includes(status as ReportStatus)) {
-  res.status(400).json({
-    success: false,
-    message: "Invalid report status.",
-  });
-  return;
-  }
+    if (!status || !VALID_STATUSES.includes(status as ReportStatus)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid report status.',
+      });
+      return;
+    }
 
     const report = await Report.findById(id);
 
@@ -1143,6 +1128,105 @@ export async function verifyReport(
         : 'Report marked as unverified.',
       data: {
         report: populatedReport,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+export async function getCityStats(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const totalReports = await Report.countDocuments();
+    const pending = await Report.countDocuments({ status: 'pending' });
+    const inProgress = await Report.countDocuments({ status: 'in-progress' });
+    const resolved = await Report.countDocuments({ status: 'resolved' });
+    // Note: isVerified isn't actually a field on Report, it's 'verified'
+    const verified = await Report.countDocuments({ verified: true });
+
+    const categoryStats = await Report.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $project: { _id: 0, category: '$_id', count: 1 } },
+      { $sort: { count: -1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalReports,
+        pending,
+        inProgress,
+        resolved,
+        verified,
+        byCategory: categoryStats,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+export async function toggleObservation(
+  req: AuthenticatedRequest & { params: { id: string } },
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ success: false, message: 'Not authenticated.' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      res.status(400).json({ success: false, message: 'Invalid report ID.' });
+      return;
+    }
+
+    const report = await Report.findById(id);
+
+    if (!report) {
+      res.status(404).json({ success: false, message: 'Report not found.' });
+      return;
+    }
+
+    const obsIndex = report.personallyObserved.findIndex(
+      (userId) => userId.toString() === req.userId,
+    );
+
+    let observed = false;
+    if (obsIndex !== -1) {
+      report.personallyObserved.splice(obsIndex, 1);
+    } else {
+      report.personallyObserved.push(new Types.ObjectId(req.userId));
+      observed = true;
+
+      if (report.reportedBy.toString() !== req.userId) {
+        try {
+          await Notification.create({
+            user: report.reportedBy,
+            title: 'Report Observed',
+            message: 'Someone personally observed your reported issue.',
+            type: 'report',
+          });
+        } catch (e) {
+          console.error('Failed to create notification', e);
+        }
+      }
+    }
+
+    await report.save();
+
+    res.status(200).json({
+      success: true,
+      message: observed ? 'Observation added.' : 'Observation removed.',
+      data: {
+        personallyObserved: report.personallyObserved.length,
       },
     });
   } catch (error) {

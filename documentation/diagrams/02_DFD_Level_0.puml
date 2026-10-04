@@ -1,0 +1,15 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+title SERPENTIS Context Data Flow Diagram (Level 0)
+
+rectangle "Citizen\n(Mobile User)" as citizen
+rectangle "External APIs\n(Cloudinary, OpenFreeMap)" as external
+
+usecase "0.0\nSERPENTIS System" as system
+
+citizen --> system : Credentials, Profile, Report, SOS
+system --> citizen : JWT, Map Data, Alerts
+system --> external : Images, Tile Requests
+external --> system : Image URLs, Vector Tiles
+@enduml

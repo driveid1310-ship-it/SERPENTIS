@@ -398,11 +398,11 @@ export async function getNearbyServices(
       },
     };
 
-    const services = await PublicService.find(filter)
-  .skip(skip)
-  .limit(limit);
+    const total = await PublicService.countDocuments(filter);
 
-const total = services.length;
+    const services = await PublicService.find(filter)
+      .skip(skip)
+      .limit(limit);
 
     res.status(200).json({
       success: true,

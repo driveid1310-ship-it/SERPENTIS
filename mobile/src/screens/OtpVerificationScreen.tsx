@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -13,7 +14,12 @@ import Screen from '../components/Screen/Screen';
 import AuthHeader from '../components/AuthHeader/AuthHeader';
 import AuthButton from '../components/AuthButton/AuthButton';
 import OtpInput from '../components/OtpInput/OtpInput';
-import { authTheme } from '../theme/authTheme';
+import { useTheme } from '../context/ThemeContext';
+import {
+  AuthServiceError,
+  requestPasswordReset,
+  verifyPasswordResetOtp,
+} from '../services/authService';
 
 type OtpVerificationScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -24,42 +30,93 @@ export default function OtpVerificationScreen({
   navigation,
   route,
 }: OtpVerificationScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(60);
 
   const { email } = route.params;
 
-  const handleOtpChange = (value: string) => {
+  useEffect(() => {
+    if (resendCountdown === 0) {
+      return undefined;
+    }
+
+    const countdown = setInterval(() => {
+      setResendCountdown((remaining) => Math.max(0, remaining - 1));
+    }, 1000);
+
+    return () => clearInterval(countdown);
+  }, [resendCountdown]);
+
+  const handleOtpChange = useCallback((value: string) => {
     setOtp(value);
 
     if (errorMessage) {
       setErrorMessage('');
     }
-  };
+  }, [errorMessage]);
 
-  const handleVerify = () => {
+  const handleVerify = useCallback(async () => {
     if (otp.length !== 6) {
       setErrorMessage('Please enter the 6-digit verification code.');
       return;
     }
 
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
-
-    // UI-only for now.
-    // Connect this to the backend OTP verification endpoint later.
-    setTimeout(() => {
+    setErrorMessage('');
+    try {
+      const { resetToken } = await verifyPasswordResetOtp({ email, otp });
+      setOtp('');
+      navigation.replace('ResetPassword', { resetToken });
+    } catch (verificationError) {
+      setErrorMessage(
+        verificationError instanceof AuthServiceError
+          ? verificationError.message
+          : 'Unable to verify this code. Please try again.',
+      );
+    } finally {
       setLoading(false);
+    }
+  }, [email, loading, navigation, otp]);
 
-      navigation.navigate('ResetPassword', {
-        email,
-      });
-    }, 500);
-  };
+  const handleResend = useCallback(async () => {
+    if (loading || resendCountdown > 0) {
+      return;
+    }
 
-  const handleBackPress = () => {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const { resendAfterSeconds } = await requestPasswordReset(email);
+      setOtp('');
+      setResendCountdown(resendAfterSeconds);
+    } catch (resendError) {
+      setErrorMessage(
+        resendError instanceof AuthServiceError
+          ? resendError.message
+          : 'Unable to resend the code. Please try again.',
+      );
+      setResendCountdown(10);
+    } finally {
+      setLoading(false);
+    }
+  }, [email, loading, resendCountdown]);
+
+  const handleBackPress = useCallback(() => {
     navigation.goBack();
-  };
+  }, [navigation]);
+
+  const resendLabel =
+    resendCountdown > 0
+      ? `Resend code in 00:${resendCountdown.toString().padStart(2, '0')}`
+      : 'Resend code';
 
   return (
     <Screen>
@@ -70,7 +127,7 @@ export default function OtpVerificationScreen({
         <View style={styles.container}>
           <AuthHeader
             title="Verify Code"
-            subtitle={`Enter the 6-digit code sent to ${email}`}
+            subtitle={`Enter the 6-digit code if an account exists for ${email}`}
             onBackPress={handleBackPress}
           />
 
@@ -83,15 +140,34 @@ export default function OtpVerificationScreen({
             />
 
             <Text style={styles.helperText}>
-              Didn't receive the code? Check your spam folder or request a new
-              code.
+              If you don't receive a code, check your spam folder or request a
+              new one.
             </Text>
 
+            <Pressable
+              onPress={handleResend}
+              disabled={loading || resendCountdown > 0}
+              accessibilityRole="button"
+              accessibilityState={{
+                disabled: loading || resendCountdown > 0,
+              }}
+              style={styles.resendButton}
+            >
+              <Text
+                style={[
+                  styles.resendText,
+                  (loading || resendCountdown > 0) && styles.resendDisabled,
+                ]}
+              >
+                {loading ? 'Sending...' : resendLabel}
+              </Text>
+            </Pressable>
+
             <AuthButton
-             label="VERIFY CODE"
-             onPress={handleVerify}
-            loading={loading}
-            disabled={otp.length !== 6}
+              label="VERIFY CODE"
+              onPress={handleVerify}
+              loading={loading}
+              disabled={otp.length !== 6}
             />
           </View>
         </View>
@@ -100,15 +176,15 @@ export default function OtpVerificationScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
 
   container: {
     flex: 1,
-    paddingHorizontal: authTheme.spacing.lg,
-    paddingTop: authTheme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
   },
 
   content: {
@@ -116,10 +192,24 @@ const styles = StyleSheet.create({
   },
 
   helperText: {
-    marginTop: authTheme.spacing.md,
-    marginBottom: authTheme.spacing.lg,
-    color: authTheme.colors.textSecondary,
-    fontSize: authTheme.typography.fontSizes.sm,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.sm,
     lineHeight: 20,
+  },
+  resendButton: {
+    alignSelf: 'center',
+    marginBottom: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+  },
+  resendText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.bold,
+  },
+  resendDisabled: {
+    opacity: 0.55,
   },
 });

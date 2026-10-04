@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, Image } from 'react-native';
 
-import { authTheme } from '../../theme/authTheme';
+import { useTheme } from '../../context/ThemeContext';
 
 export interface AuthHeaderProps {
   title: string;
@@ -14,6 +14,8 @@ export default function AuthHeader({
   subtitle,
   onBackPress,
 }: AuthHeaderProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   return (
     <View style={styles.container}>
       {onBackPress ? (
@@ -32,6 +34,16 @@ export default function AuthHeader({
         </Pressable>
       ) : null}
 
+      
+      <View style={styles.brandingContainer}>
+        <Image 
+          source={require('../../assets/images/serpentis-logo-transparent.png')} 
+          style={styles.logo}
+          resizeMode="contain" 
+        />
+        <Text style={styles.brandName}>SERPENTIS</Text>
+      </View>
+
       <Text style={styles.title}>{title}</Text>
 
       {subtitle ? (
@@ -41,18 +53,35 @@ export default function AuthHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
+  brandingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  logo: {
+    width: 24,
+    height: 24,
+    tintColor: theme.colors.text,
+    marginRight: 8,
+  },
+  brandName: {
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.bold,
+    letterSpacing: 2,
+    color: theme.colors.text,
+  },
   container: {
     width: '100%',
-    marginBottom: authTheme.spacing.xl,
+    marginBottom: theme.spacing.xl,
   },
 
   backButton: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: authTheme.spacing.lg,
-    paddingVertical: authTheme.spacing.xs,
+    marginBottom: theme.spacing.lg,
+    paddingVertical: theme.spacing.xs,
   },
 
   backButtonPressed: {
@@ -61,30 +90,30 @@ const styles = StyleSheet.create({
 
   backIcon: {
     marginRight: 6,
-    color: authTheme.colors.textPrimary,
+    color: theme.colors.text,
     fontSize: 30,
     lineHeight: 30,
   },
 
   backText: {
-    color: authTheme.colors.textSecondary,
-    fontSize: authTheme.typography.fontSizes.sm,
-    fontWeight: authTheme.typography.fontWeights.medium,
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.sm,
+    fontWeight: theme.typography.fontWeights.medium,
   },
 
   title: {
-    color: authTheme.colors.textPrimary,
-    fontSize: authTheme.typography.h1,
-    fontWeight: authTheme.typography.fontWeights.bold,
+    color: theme.colors.text,
+    fontSize: theme.typography.h1,
+    fontWeight: theme.typography.fontWeights.bold,
     lineHeight: 36,
     letterSpacing: -0.5,
   },
 
   subtitle: {
-    marginTop: authTheme.spacing.sm,
-    color: authTheme.colors.textSecondary,
-    fontSize: authTheme.typography.fontSizes.md,
-    fontWeight: authTheme.typography.fontWeights.regular,
+    marginTop: theme.spacing.sm,
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.fontSizes.md,
+    fontWeight: theme.typography.fontWeights.regular,
     lineHeight: 24,
   },
 });

@@ -1,0 +1,74 @@
+@startuml
+skinparam monochrome true
+title SERPENTIS Entity Relationship Diagram
+
+entity "User" as user {
+  * _id (PK)
+  --
+  email (Unique)
+  password (Hash)
+  trustScore (Int)
+  profilePicture (String)
+  role (Enum)
+  badges (Array)
+}
+
+entity "Report" as report {
+  * _id (PK)
+  --
+  reportedBy (FK -> User)
+  title (String)
+  description (String)
+  category (Enum)
+  status (Enum)
+  location (2dsphere)
+  images (Array)
+}
+
+entity "PublicService" as ps {
+  * _id (PK)
+  --
+  name (String)
+  category (String)
+  location (2dsphere)
+}
+
+entity "Place" as place {
+  * _id (PK)
+  --
+  name (String)
+  description (String)
+  location (2dsphere)
+}
+
+entity "SOS" as sos {
+  * _id (PK)
+  --
+  reportedBy (FK -> User)
+  emergencyType (Enum)
+  status (Enum)
+  location (2dsphere)
+}
+
+entity "Group" as group {
+  * _id (PK)
+  --
+  name (String)
+  members (Array -> User)
+}
+
+entity "ChatMessage" as chat {
+  * _id (PK)
+  --
+  group (FK -> Group)
+  sender (FK -> User)
+  message (String)
+  timestamp (Date)
+}
+
+user "1" -- "N" report
+user "1" -- "N" sos
+user "M" -- "N" group
+group "1" -- "N" chat
+user "1" -- "N" chat
+@enduml

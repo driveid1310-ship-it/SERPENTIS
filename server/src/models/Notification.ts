@@ -69,7 +69,9 @@ const notificationSchema = new Schema<INotification>(
   },
 );
 
-notificationSchema.index({ user: 1, isRead: 1, createdAt: -1 });
+notificationSchema.index({ user: 1 });
+notificationSchema.index({ isRead: 1 });
+notificationSchema.index({ createdAt: -1 });
 
 const Notification = model<INotification>(
   'Notification',

@@ -1,0 +1,34 @@
+@startuml
+skinparam monochrome true
+title SERPENTIS Architectural Components
+
+package "React Native Mobile App" {
+  [Navigation Container]
+  [Auth Provider (Keychain)]
+  [Map Component (MapLibre)]
+  [Socket Client]
+}
+
+package "Node.js Express Backend" {
+  [Express Router]
+  [JWT Middleware]
+  [Socket.IO Server]
+  [Controllers]
+  [Mongoose Models]
+}
+
+cloud "External Services" {
+  [MongoDB Atlas]
+  [Cloudinary CDN]
+  [OpenFreeMap]
+}
+
+[Navigation Container] --> [Express Router] : REST API
+[Socket Client] <--> [Socket.IO Server] : WebSockets
+[Map Component (MapLibre)] --> [OpenFreeMap] : Tile Requests
+
+[Express Router] --> [Controllers]
+[Controllers] --> [Mongoose Models]
+[Controllers] --> [Cloudinary CDN] : Node SDK
+[Mongoose Models] --> [MongoDB Atlas] : MongoDB Protocol
+@enduml
