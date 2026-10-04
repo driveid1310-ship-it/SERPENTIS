@@ -118,3 +118,6 @@ documentation/puml_4_9_new.png
 # Documentation working directories
 documentation/Telegram Desktop/
 documentation/diagrams/*.py
+# Word lock files
+~$*.docx
+~$*.doc
