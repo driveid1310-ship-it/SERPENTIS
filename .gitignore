@@ -87,7 +87,7 @@ update_*.cjs
 handle64.exe
 
 # Temporary / malformed files
-screens/
+/screens/
 creens*
 "-tree -r --name-only"*
 *-r --name-only*
@@ -121,3 +121,60 @@ documentation/diagrams/*.py
 # Word lock files
 ~$*.docx
 ~$*.doc
+
+# ==============================================
+# Phase D: Hardened Node / React Native / Android / Secret Rules
+# ==============================================
+
+# Node.js & runtime caches
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/cache/
+.pnpm-store/
+*.tsbuildinfo
+
+# React Native & Metro
+.metro-health-check*
+.metro-cache/
+mobile/.bundle/
+mobile/ios/build/
+mobile/ios/Pods/
+
+# Android native, signing & outputs
+**/android/.kotlin/
+**/android/local.properties
+**/android/keystore.properties
+**/*.keystore
+**/*.jks
+**/*.p12
+!mobile/android/app/debug.keystore
+!**/keystore.properties.example
+**/*.apk
+**/*.aab
+!mobile/android/gradle/wrapper/gradle-wrapper.jar
+
+# Environment, secrets & local database dumps
+.env.local
+.env.development
+.env.production
+!.env.example
+google-services.json
+GoogleService-Info.plist
+dump/
+*.bson
+*.sqlite
+*.sqlite3
+
+# Local academic report-assembly duplicates & helper scripts
+documentation - Copy/
+report_final/
+report_source_code/
+/SERPENTIS_Cleaned.pdf
+/test.docx
+/com_footers.py
+/generate_doc.py
+/orchestrator.py
+/update_index.py

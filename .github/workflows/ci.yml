@@ -1,0 +1,90 @@
+name: SERPENTIS CI
+
+on:
+  push:
+    branches:
+      - main
+      - serpentis-autonomous-development
+  pull_request:
+    branches:
+      - main
+      - serpentis-autonomous-development
+
+jobs:
+  server:
+    name: Backend Build & Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci
+
+      - name: TypeScript build
+        run: npm run build
+
+      - name: Run server test suite
+        run: npm test
+
+  mobile:
+    name: Mobile TypeScript, ESLint & Jest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: ESLint check
+        run: npx eslint src
+
+      - name: Run Jest unit tests
+        run: npm test -- --watchAll=false
+
+  repository-hygiene:
+    name: Git Hygiene & Secret Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure sensitive files are not tracked
+        run: |
+          TRACKED_SECRETS=$(git ls-files | grep -E '(\.env($|\.)|\.keystore$|\.jks$|\.p12$|\.pem$|\.key$|keystore\.properties$|local\.properties$|google-services\.json$|service-account.*\.json$)' | grep -vE '(\.env\.example$|keystore\.properties\.example$|mobile/android/app/debug\.keystore$|mobile/ios/\.xcode\.env$)' || true)
+          if [ -n "$TRACKED_SECRETS" ]; then
+            echo "Forbidden sensitive or local config files are tracked:"
+            echo "$TRACKED_SECRETS"
+            exit 1
+          fi
+
+      - name: Scan source directories for common leaked key prefixes
+        run: |
+          if git grep -I -n -E '(AIza[0-9A-Za-z_-]{35}|sk-[A-Za-z0-9]{20,}|gh[po]_[A-Za-z0-9]{25,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)' -- mobile/src server/src; then
+            echo "Potential hardcoded secret detected in source code!"
+            exit 1
+          fi
