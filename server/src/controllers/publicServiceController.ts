@@ -7,6 +7,7 @@ import PublicService, {
 } from "../models/PublicService.js";
 
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { escapeRegex } from "../utils/regex.js";
 
 const isValidCategory = (
   category: string,
@@ -209,7 +210,7 @@ export async function updateService(
         id,
         req.body,
         {
-          new: true,
+          returnDocument: 'after',
           runValidators: true,
         },
       );
@@ -304,23 +305,24 @@ export async function searchServices(
     const { page, limit, skip } =
       getPagination(req);
 
+    const safeQuery = escapeRegex(query);
     const filter = {
       $or: [
         {
           name: {
-            $regex: query,
+            $regex: safeQuery,
             $options: "i",
           },
         },
         {
           description: {
-            $regex: query,
+            $regex: safeQuery,
             $options: "i",
           },
         },
         {
           address: {
-            $regex: query,
+            $regex: safeQuery,
             $options: "i",
           },
         },

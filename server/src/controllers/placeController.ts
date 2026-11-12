@@ -10,6 +10,7 @@ import PlaceReview from "../models/PlaceReview.js";
 import PlaceFavorite from "../models/PlaceFavorite.js";
 
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { escapeRegex } from "../utils/regex.js";
 // ===============================
 // Get All Places
 // ===============================
@@ -77,7 +78,7 @@ export async function getPlaceById(
     },
   },
   {
-    new: true,
+    returnDocument: 'after',
   },
 );
 
@@ -142,23 +143,24 @@ export async function searchPlaces(
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    const safeQuery = escapeRegex(query);
     const filter = {
       $or: [
         {
           name: {
-            $regex: query,
+            $regex: safeQuery,
             $options: "i",
           },
         },
         {
           description: {
-            $regex: query,
+            $regex: safeQuery,
             $options: "i",
           },
         },
         {
           history: {
-            $regex: query,
+            $regex: safeQuery,
             $options: "i",
           },
         },
@@ -650,7 +652,7 @@ export async function updatePlace(
       id,
       req.body,
       {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       },
     );

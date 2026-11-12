@@ -20,35 +20,67 @@ export default function GroupChatScreen({ navigation, route }: Props) {
   const [messages, setMessages] = useState<GroupMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [socketNotice, setSocketNotice] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     let isActive = true;
     let onNewMessage: ((msg: GroupMessage) => void) | null = null;
-    
+    let onConnect: (() => void) | null = null;
+    let onDisconnect: (() => void) | null = null;
+    let onConnectError: (() => void) | null = null;
+
     const setup = async () => {
       try {
         const hist = await getGroupMessagesRequest(groupId, 1);
         if (isActive) {
           setMessages(hist); // sorted desc from backend
         }
-        
+
         const socket = await initSocket();
         if (socket && isActive) {
+          setSocketConnected(socket.connected);
           socket.emit('joinGroup', groupId);
+
+          onConnect = () => {
+            if (!isActive) return;
+            setSocketConnected(true);
+            setSocketNotice(null);
+            socket.emit('joinGroup', groupId);
+          };
+
+          onDisconnect = () => {
+            if (!isActive) return;
+            setSocketConnected(false);
+            setSocketNotice('Chat disconnected. Reconnecting automatically...');
+          };
+
+          onConnectError = () => {
+            if (!isActive) return;
+            setSocketConnected(false);
+            setSocketNotice('Unable to reach live chat server. Retrying...');
+          };
 
           onNewMessage = (msg: GroupMessage) => {
             setMessages(prev => [msg, ...prev]);
           };
+
+          socket.on('connect', onConnect);
+          socket.on('disconnect', onDisconnect);
+          socket.on('connect_error', onConnectError);
           socket.on('newMessage', onNewMessage);
         }
       } catch (err) {
-        console.error("Chat setup failed", err);
+        console.error('Chat setup failed', err);
+        if (isActive) {
+          setSocketNotice('Failed to load group chat history.');
+        }
       } finally {
         if (isActive) setLoading(false);
       }
     };
-    
+
     setup();
 
     return () => {
@@ -56,9 +88,10 @@ export default function GroupChatScreen({ navigation, route }: Props) {
       const socket = getSocket();
       if (socket) {
         socket.emit('leaveGroup', groupId);
-        if (onNewMessage) {
-          socket.off('newMessage', onNewMessage);
-        }
+        if (onConnect) socket.off('connect', onConnect);
+        if (onDisconnect) socket.off('disconnect', onDisconnect);
+        if (onConnectError) socket.off('connect_error', onConnectError);
+        if (onNewMessage) socket.off('newMessage', onNewMessage);
       }
     };
   }, [groupId]);
@@ -66,14 +99,16 @@ export default function GroupChatScreen({ navigation, route }: Props) {
   const handleSend = () => {
     if (!text.trim()) return;
     const socket = getSocket();
-    if (socket) {
-      socket.emit('sendMessage', { groupId, text: text.trim() }, (res: any) => {
-        if (res && res.error) {
-           console.error("Send error:", res.error);
-        }
-      });
-      setText('');
+    if (!socket || !socket.connected) {
+      setSocketNotice('Cannot send message while disconnected. Waiting to reconnect...');
+      return;
     }
+    socket.emit('sendMessage', { groupId, text: text.trim() }, (res: any) => {
+      if (res && res.error) {
+        setSocketNotice(String(res.error));
+      }
+    });
+    setText('');
   };
 
   const renderMessage = useCallback(({ item }: { item: GroupMessage }) => {
@@ -105,7 +140,17 @@ export default function GroupChatScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Header title={groupName} onBackPress={() => navigation.goBack()} />
+      <Header
+        title={groupName}
+        subtitle={socketConnected ? 'Live chat connected' : 'Connecting...'}
+        onBackPress={() => navigation.goBack()}
+      />
+
+      {socketNotice ? (
+        <View style={styles.connectionBanner}>
+          <Text style={styles.connectionBannerText}>{socketNotice}</Text>
+        </View>
+      ) : null}
       
       {loading ? (
         <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
@@ -189,5 +234,16 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.primary,
     marginTop: 4,
     fontWeight: '500',
+  },
+  connectionBanner: {
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.warning ?? theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  connectionBannerText: {
+    fontSize: 12,
+    color: theme.colors.warning ?? theme.colors.textSecondary,
   },
 });

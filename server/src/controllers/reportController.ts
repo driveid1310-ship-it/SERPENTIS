@@ -15,6 +15,7 @@ import type {
 } from "../models/Report.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
+import { escapeRegex } from "../utils/regex.js";
 
 interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -170,6 +171,15 @@ export function sanitizeReportForViewer(
     reportObj.reportedBy = {
       fullName: 'Anonymous Citizen',
     };
+  } else if (
+    !isAuthor &&
+    !isStaff &&
+    reportObj.reportedBy &&
+    typeof reportObj.reportedBy === 'object' &&
+    'email' in reportObj.reportedBy
+  ) {
+    const { email: _redacted, ...rest } = reportObj.reportedBy;
+    reportObj.reportedBy = rest;
   }
 
   // Requirement 8: Keep reports unverified until appropriately reviewed.
@@ -1253,23 +1263,24 @@ export async function searchReports(
       return;
     }
 
+    const safeQuery = escapeRegex(query);
     const reports = await Report.find({
       $or: [
         {
           title: {
-            $regex: query,
+            $regex: safeQuery,
             $options: 'i',
           },
         },
         {
           description: {
-            $regex: query,
+            $regex: safeQuery,
             $options: 'i',
           },
         },
         {
           category: {
-            $regex: query,
+            $regex: safeQuery,
             $options: 'i',
           },
         },

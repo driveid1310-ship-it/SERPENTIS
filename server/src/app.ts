@@ -15,6 +15,7 @@ import groupRoutes from './routes/groupRoutes.js';
 import environmentalRoutes from './routes/environmentalRoutes.js';
 import { errorMiddleware, notFoundHandler } from './middleware/errorMiddleware.js';
 import { createRateLimiter } from './middleware/rateLimitMiddleware.js';
+import { getCorsOrigins } from './config/envValidation.js';
 import { weatherService } from './services/weather/WeatherService.js';
 import { airQualityService } from './services/air-quality/AirQualityService.js';
 import { cityIntelligenceAIService } from './services/ai/CityIntelligenceAIService.js';
@@ -22,9 +23,7 @@ import { environmentalCache } from './services/environmental/EnvironmentalCacheS
 
 const app = express();
 
-const corsOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-  : '*';
+const corsOrigins = getCorsOrigins();
 
 app.use(
   cors({

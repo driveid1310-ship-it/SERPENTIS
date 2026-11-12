@@ -3,7 +3,7 @@ import axios, {
   type AxiosInstance,
   type InternalAxiosRequestConfig,
 } from 'axios';
-import { API_BASE_URL } from './env';
+import { API_BASE_URL, ENV_CONFIG_ERROR } from './env';
 import { getToken } from '../utils/storage';
 
 /**
@@ -34,6 +34,10 @@ export function setUnauthorizedHandler(
 
 axiosInstance.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    if (ENV_CONFIG_ERROR) {
+      throw new Error(ENV_CONFIG_ERROR);
+    }
+
     const token = await getToken();
 
     if (token) {

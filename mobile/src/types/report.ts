@@ -146,5 +146,5 @@ export interface Report {
 export interface UserReference {
   _id: string;
   fullName: string;
-  email: string;
+  email?: string;
 }

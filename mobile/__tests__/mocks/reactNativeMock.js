@@ -7,10 +7,22 @@ const createMockComponent = (name) => {
 };
 
 module.exports = {
-  Platform: { OS: 'android', select: (obj) => obj.android ?? obj.default },
+  Platform: { OS: 'android', Version: 35, select: (obj) => obj.android ?? obj.default },
+  NativeModules: {
+    SerpentisConfig: {
+      API_BASE_URL: '',
+      BUILD_TYPE: 'debug',
+      IS_DEBUG: true,
+    },
+  },
   PermissionsAndroid: {
-    PERMISSIONS: { ACCESS_FINE_LOCATION: 'ACCESS_FINE_LOCATION', CAMERA: 'CAMERA' },
+    PERMISSIONS: {
+      ACCESS_FINE_LOCATION: 'ACCESS_FINE_LOCATION',
+      CAMERA: 'CAMERA',
+      POST_NOTIFICATIONS: 'android.permission.POST_NOTIFICATIONS',
+    },
     RESULTS: { GRANTED: 'granted', DENIED: 'denied', NEVER_ASK_AGAIN: 'never_ask_again' },
+    check: jest.fn(async () => true),
     request: jest.fn(async () => 'granted'),
   },
   StyleSheet: {

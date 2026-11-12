@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Image,
   ActivityIndicator,
   Pressable,
@@ -22,6 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useCity } from '../context/CityContext';
 import { getUnifiedOverviewRequest } from '../api/environment';
 import type { UnifiedOverviewData } from '../types/environment';
+import { ensureNotificationPermissionOnce } from '../utils/notificationPermission';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -92,6 +93,10 @@ export default function HomeScreen({
     refetch: refetchRecent,
   } = useRecentReports();
   const { notifications, refetch: refetchNotifications } = useNotifications();
+
+  useEffect(() => {
+    ensureNotificationPermissionOnce().catch(() => undefined);
+  }, []);
 
   const unreadNotificationCount = notifications.filter(
     (notification) => !notification.isRead,

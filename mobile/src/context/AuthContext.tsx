@@ -5,15 +5,19 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authService from '../services/authService';
 import { saveToken, getToken, clearToken } from '../utils/storage';
 import { setUnauthorizedHandler } from '../config/axios';
+import { disconnectSocket } from '../services/socket';
 import type { User } from '../types/user';
 import type {
   AuthContextValue,
   LoginCredentials,
   RegisterCredentials,
 } from '../types/auth';
+
+const CACHED_USER_KEY = '@serpentis/cached_user_v1';
 
 export const AuthContext = createContext<AuthContextValue | undefined>(
   undefined,
@@ -29,9 +33,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState<boolean>(true);
 
   const clearSession = useCallback(async () => {
+    disconnectSocket();
     await clearToken();
+    await AsyncStorage.removeItem(CACHED_USER_KEY).catch(() => undefined);
     setUser(null);
     setToken(null);
+  }, []);
+
+  const persistUserCache = useCallback(async (userData: User) => {
+    await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(userData)).catch(
+      () => undefined,
+    );
   }, []);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
@@ -39,24 +51,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const authData = await authService.login(credentials);
       await saveToken(authData.token);
+      await persistUserCache(authData.user);
       setToken(authData.token);
       setUser(authData.user);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [persistUserCache]);
 
   const register = useCallback(async (credentials: RegisterCredentials) => {
     setLoading(true);
     try {
       const authData = await authService.register(credentials);
       await saveToken(authData.token);
+      await persistUserCache(authData.user);
       setToken(authData.token);
       setUser(authData.user);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [persistUserCache]);
 
   const logout = useCallback(async () => {
     setLoading(true);
@@ -76,10 +90,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
+      await persistUserCache(currentUser);
     } catch {
       // Intentionally silent — leave existing user state untouched.
     }
-  }, []);
+  }, [persistUserCache]);
 
   // Register the 401 handler exactly once so the Axios interceptor can
   // trigger a logout without config/axios.ts importing this context.
@@ -114,9 +129,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (isMounted) {
           setUser(currentUser);
         }
-        } catch {
-        await clearSession();
-        } finally {
+        await persistUserCache(currentUser);
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 401 || status === 403) {
+          await clearSession();
+        } else {
+          // Preserve token across transient offline/network failures on startup.
+          const cachedRaw = await AsyncStorage.getItem(CACHED_USER_KEY).catch(
+            () => null,
+          );
+          if (cachedRaw && isMounted) {
+            try {
+              setUser(JSON.parse(cachedRaw) as User);
+            } catch {
+              await clearSession();
+            }
+          } else {
+            await clearSession();
+          }
+        }
+      } finally {
         if (isMounted) {
           setLoading(false);
         }
@@ -127,7 +160,7 @@ restoreSession().catch(console.error);
     return () => {
       isMounted = false;
     };
-  }, [clearSession]);
+  }, [clearSession, persistUserCache]);
 
   const isAuthenticated = useMemo(
     () => Boolean(user && token),

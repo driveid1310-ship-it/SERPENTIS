@@ -5,6 +5,7 @@ import { GroupMember } from './models/GroupMember.js';
 import { GroupMessage } from './models/GroupMessage.js';
 import Report from './models/Report.js';
 import User from './models/User.js';
+import { getCorsOrigins } from './config/envValidation.js';
 
 interface SocketUser {
   id: string;
@@ -13,7 +14,7 @@ interface SocketUser {
 export function setupSocket(httpServer: HttpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: '*', // Adjust in production
+      origin: getCorsOrigins(),
       methods: ['GET', 'POST'],
     },
   });

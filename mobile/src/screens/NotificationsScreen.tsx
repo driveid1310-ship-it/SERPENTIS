@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -9,6 +9,11 @@ import AppButton from '../components/Button/AppButton';
 import { useTheme } from '../context/ThemeContext';
 import { useNotifications } from '../hooks/useNotifications';
 import type { Notification, NotificationType } from '../types/notification';
+import {
+  getNotificationPermissionStatus,
+  requestNotificationPermission,
+  type NotificationPermissionState,
+} from '../utils/notificationPermission';
 
 type NotificationsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -64,6 +69,19 @@ export default function NotificationsScreen({
   const styles = getStyles(theme);
   const { status, notifications, errorMessage, refetch, markAsRead, markAllAsRead } =
     useNotifications();
+  const [permissionState, setPermissionState] =
+    useState<NotificationPermissionState>('not-required');
+
+  useEffect(() => {
+    getNotificationPermissionStatus()
+      .then(setPermissionState)
+      .catch(() => undefined);
+  }, []);
+
+  const handleEnableNotificationsPress = useCallback(async () => {
+    const nextState = await requestNotificationPermission();
+    setPermissionState(nextState);
+  }, []);
 
   const handleBackPress = useCallback(() => {
     navigation.goBack();
@@ -96,6 +114,23 @@ export default function NotificationsScreen({
         }
         onBackPress={handleBackPress}
       />
+
+      {permissionState === 'denied' ? (
+        <View style={styles.section}>
+          <AppCard elevation="sm">
+            <Text style={styles.sectionTitle}>Notification Permission Needed</Text>
+            <Text style={styles.errorMessage}>
+              Enable Android notification permission to receive critical system and environmental alert notifications once push delivery is configured.
+            </Text>
+            <AppButton
+              label="Allow Notifications"
+              onPress={handleEnableNotificationsPress}
+              variant="outline"
+              style={styles.errorRetryButton}
+            />
+          </AppCard>
+        </View>
+      ) : null}
 
       {status === 'success' ? (
         <View style={styles.listHeaderRow}>

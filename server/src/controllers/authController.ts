@@ -380,7 +380,7 @@ export async function updateCurrentUser(
     const user = await User.findByIdAndUpdate(
       req.userId,
       { $set: updates },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     );
 
     if (!user) {

@@ -3,6 +3,7 @@ import { Group } from '../models/Group.js';
 import { GroupMember } from '../models/GroupMember.js';
 import { GroupMessage } from '../models/GroupMessage.js';
 import type { AuthenticatedRequest } from '../middleware/authMiddleware.js';
+import { escapeRegex } from '../utils/regex.js';
 
 export const createGroup = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -41,7 +42,7 @@ export const getGroups = async (req: Request, res: Response): Promise<void> => {
 
     const query: any = {};
     if (category) query.category = category;
-    if (search) query.name = { $regex: search, $options: 'i' };
+    if (search) query.name = { $regex: escapeRegex(search), $options: 'i' };
 
     const groups = await Group.find(query).sort({ memberCount: -1, createdAt: -1 }).limit(50);
     res.status(200).json(groups);

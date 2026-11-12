@@ -57,7 +57,31 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = (project.findProperty("ENABLE_PROGUARD") ?: "false").toBoolean()
+
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+def releaseStoreFilePath = keystoreProperties.getProperty("storeFile") ?: System.getenv("SERPENTIS_UPLOAD_STORE_FILE")
+def releaseStorePassword = keystoreProperties.getProperty("storePassword") ?: System.getenv("SERPENTIS_UPLOAD_STORE_PASSWORD")
+def releaseKeyAlias = keystoreProperties.getProperty("keyAlias") ?: System.getenv("SERPENTIS_UPLOAD_KEY_ALIAS")
+def releaseKeyPassword = keystoreProperties.getProperty("keyPassword") ?: System.getenv("SERPENTIS_UPLOAD_KEY_PASSWORD")
+def resolvedReleaseStoreFile = releaseStoreFilePath ? rootProject.file(releaseStoreFilePath) : null
+def hasReleaseSigning = (
+    resolvedReleaseStoreFile != null &&
+    resolvedReleaseStoreFile.exists() &&
+    releaseStorePassword &&
+    releaseKeyAlias &&
+    releaseKeyPassword
+)
+def serpentisApiUrl = (
+    project.findProperty("SERPENTIS_API_URL") ?:
+    System.getenv("SERPENTIS_API_BASE_URL") ?:
+    System.getenv("SERPENTIS_API_URL") ?:
+    ""
+).toString().replace('"', '\\"')
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -77,6 +101,10 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
+    buildFeatures {
+        buildConfig true
+    }
+
     namespace "com.serpentis.app"
     defaultConfig {
         applicationId "com.serpentis.app"
@@ -84,6 +112,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        buildConfigField "String", "API_BASE_URL", "\"${serpentisApiUrl}\""
         externalNativeBuild {
             cmake {
                 arguments "-DCMAKE_OBJECT_PATH_MAX=260"
@@ -97,6 +126,14 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasReleaseSigning) {
+            release {
+                storeFile resolvedReleaseStoreFile
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
@@ -104,12 +141,14 @@ android {
             manifestPlaceholders = [usesCleartextTraffic: "true"]
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Release signing requires external keystore.properties or SERPENTIS_UPLOAD_* env vars.
+            // Never fall back to debug signing or cleartext HTTP in release builds.
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            manifestPlaceholders = [usesCleartextTraffic: "true"]
+            manifestPlaceholders = [usesCleartextTraffic: "false"]
         }
     }
 }
