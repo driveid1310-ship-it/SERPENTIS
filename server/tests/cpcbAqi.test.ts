@@ -23,6 +23,19 @@ test('CPCB sub-index interpolation matches official breakpoints', () => {
   // CO in mg/m3: 1.5 -> between 1.0..2.0 -> AQI 51..100 => 76
   const coMid = computePollutantSubIndex('co', 1.5);
   assert.ok(coMid !== null && coMid >= 75 && coMid <= 76);
+
+  // Additional CPCB pollutants: NO2, SO2, O3, NH3, Pb boundary verification
+  assert.equal(computePollutantSubIndex('no2', 40), 50);
+  assert.equal(computePollutantSubIndex('no2', 80), 100);
+  assert.equal(computePollutantSubIndex('no2', 180), 200);
+  assert.equal(computePollutantSubIndex('so2', 40), 50);
+  assert.equal(computePollutantSubIndex('so2', 380), 200);
+  assert.equal(computePollutantSubIndex('o3', 50), 50);
+  assert.equal(computePollutantSubIndex('o3', 168), 200);
+  assert.equal(computePollutantSubIndex('nh3', 200), 50);
+  assert.equal(computePollutantSubIndex('nh3', 800), 200);
+  assert.equal(computePollutantSubIndex('pb', 0.5), 50);
+  assert.equal(computePollutantSubIndex('pb', 2.0), 200);
 });
 
 test('CPCB NAQI uses max sub-index (never averages) and identifies dominant pollutant', () => {

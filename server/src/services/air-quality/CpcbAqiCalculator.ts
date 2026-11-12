@@ -177,6 +177,7 @@ export function computePollutantSubIndex(
 export interface CpcbCalculationInput {
   values: Partial<Record<PollutantKey, number | null | undefined>>;
   isOfficialStationMeasurement: boolean;
+  averagingPeriodOverride?: '1h' | 'instant' | undefined;
 }
 
 export interface CpcbCalculationResult {
@@ -202,6 +203,7 @@ export function calculateCpcbNaqi(input: CpcbCalculationInput): CpcbCalculationR
   for (const key of keys) {
     const rawVal = input.values[key];
     const meta = POLLUTANT_UNITS[key];
+    const effectivePeriod = input.averagingPeriodOverride ?? meta.averagingPeriod;
     const validated = validatePollutantReading(key, rawVal);
 
     if (validated.valid && validated.sanitized !== null) {
@@ -215,7 +217,7 @@ export function calculateCpcbNaqi(input: CpcbCalculationInput): CpcbCalculationR
       pollutants[key] = {
         value: validated.sanitized,
         unit: meta.unit,
-        averagingPeriod: meta.averagingPeriod,
+        averagingPeriod: effectivePeriod,
         subIndex,
         category: cat,
         status: 'valid',
@@ -224,7 +226,7 @@ export function calculateCpcbNaqi(input: CpcbCalculationInput): CpcbCalculationR
       pollutants[key] = {
         value: null,
         unit: meta.unit,
-        averagingPeriod: meta.averagingPeriod,
+        averagingPeriod: effectivePeriod,
         subIndex: null,
         category: null,
         status: validated.status,

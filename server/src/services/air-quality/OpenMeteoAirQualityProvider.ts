@@ -91,6 +91,7 @@ export class OpenMeteoAirQualityProvider implements AirQualityProvider {
         o3: current.ozone !== null && current.ozone !== undefined ? Number(current.ozone) : undefined,
       },
       isOfficialStationMeasurement: false,
+      averagingPeriodOverride: '1h',
     });
 
     const obsTime = current.time

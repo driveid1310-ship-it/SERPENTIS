@@ -99,7 +99,7 @@ export default function CityAssistantScreen({ navigation }: Props) {
           ))}
         </View>
         <AppInput
-          placeholder="Ask about AQI, rain, heat precautions, or hotspots..."
+          placeholder="Ask about AQI, rain, heat, or hotspots..."
           value={question}
           onChangeText={setQuestion}
         />

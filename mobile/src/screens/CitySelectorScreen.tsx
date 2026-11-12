@@ -74,7 +74,7 @@ export default function CitySelectorScreen({ navigation }: Props) {
 
       <View style={styles.searchWrap}>
         <AppInput
-          placeholder="Search city, district, state (e.g. Badlapur, Thane, Pune)"
+          placeholder="Search city, district, or state..."
           value={query}
           onChangeText={setQuery}
         />
@@ -110,7 +110,7 @@ export default function CitySelectorScreen({ navigation }: Props) {
               <Pressable key={c.slug} onPress={() => handleSelect(c)}>
                 <AppCard style={[styles.cityCard, isSelected && styles.cityCardSelected]}>
                   <View style={styles.cityHeader}>
-                    <View>
+                    <View style={styles.cityTextWrap}>
                       <Text style={styles.cityName}>{c.name}</Text>
                       <Text style={styles.cityHierarchy}>
                         {c.locality} • {c.district} Dist., {c.state}
@@ -160,6 +160,7 @@ const getStyles = (theme: any) =>
     cityCard: { padding: theme.spacing.md },
     cityCardSelected: { borderWidth: 2, borderColor: theme.colors.primary },
     cityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    cityTextWrap: { flex: 1, marginRight: 8 },
     cityName: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text },
     cityHierarchy: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
     stageBadge: {

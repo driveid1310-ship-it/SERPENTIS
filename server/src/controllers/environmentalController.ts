@@ -677,7 +677,7 @@ export async function updatePreferences(
     const preferences = await EnvironmentalPreference.findOneAndUpdate(
       { user: req.userId },
       { $set: update },
-      { new: true, upsert: true },
+      { returnDocument: 'after', upsert: true },
     ).lean();
 
     res.status(200).json({
