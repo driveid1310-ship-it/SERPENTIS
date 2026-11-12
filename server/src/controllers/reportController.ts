@@ -1,22 +1,49 @@
 import type { Request, Response, NextFunction } from "express";
 import { Types } from "mongoose";
 import { updateUserBadges } from '../utils/badgeUtils.js';
-import Report from "../models/Report.js";
+import Report, { REPORT_CATEGORIES } from "../models/Report.js";
 import type {
   ReportCategory,
   ReportStatus,
   ReportPriority,
+  FoodSafetyConcernType,
+  OfficialFilingStatus,
+  IFoodSafetyDetails,
+  IFoodSafetyOfficialFiling,
+  IEnvironmentalReportDetails,
+  IReportLocationMeta,
 } from "../models/Report.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 
 interface AuthenticatedRequest extends Request {
   userId?: string;
+  userRole?: string;
 }
 
 interface GeoJSONPointInput {
   type?: string;
   coordinates?: number[];
+}
+
+export interface FoodSafetyDetailsInput {
+  establishmentName?: string;
+  foodItem?: string;
+  incidentDate?: string | Date;
+  concernType?: FoodSafetyConcernType;
+  officialFiling?: {
+    status?: OfficialFilingStatus;
+    docketNumber?: string;
+    filingDate?: string | Date;
+    channelName?: string;
+  };
+}
+
+export interface UpdateOfficialFilingRequestBody {
+  status?: OfficialFilingStatus;
+  docketNumber?: string;
+  filingDate?: string | Date;
+  channelName?: string;
 }
 
 interface CreateReportRequestBody {
@@ -27,6 +54,9 @@ interface CreateReportRequestBody {
   location?: GeoJSONPointInput;
   priority?: ReportPriority;
   isAnonymous?: boolean;
+  foodSafetyDetails?: FoodSafetyDetailsInput;
+  environmentalDetails?: IEnvironmentalReportDetails;
+  locationMeta?: IReportLocationMeta;
 }
 
 interface UpdateReportRequestBody {
@@ -38,6 +68,8 @@ interface UpdateReportRequestBody {
   location?: GeoJSONPointInput;
   priority?: ReportPriority;
   isDuplicate?: boolean;
+  isAnonymous?: boolean;
+  foodSafetyDetails?: FoodSafetyDetailsInput;
 }
 
 interface GetAllReportsQuery {
@@ -50,16 +82,7 @@ interface GetAllReportsQuery {
   maxDistance?: string;
   sort?: string;
 }
-const VALID_CATEGORIES: ReportCategory[] = [
-  'pothole',
-  'garbage',
-  'water-leakage',
-  'streetlight',
-  'traffic',
-  'pollution',
-  'stray-animals',
-  'other',
-];
+const VALID_CATEGORIES: ReportCategory[] = REPORT_CATEGORIES;
 
 const VALID_STATUSES: ReportStatus[] = [
   'pending',
@@ -125,6 +148,49 @@ function isValidImagesArray(value: unknown): value is string[] {
   );
 }
 
+export function sanitizeReportForViewer(
+  reportDoc: any,
+  viewerId?: string,
+  viewerRole?: string,
+): any {
+  if (!reportDoc) return reportDoc;
+  const reportObj =
+    typeof reportDoc.toObject === 'function'
+      ? reportDoc.toObject()
+      : { ...reportDoc };
+
+  const isAuthor =
+    viewerId &&
+    (reportObj.reportedBy?._id?.toString() === viewerId ||
+      reportObj.reportedBy?.toString() === viewerId);
+
+  const isStaff = viewerRole === 'admin' || viewerRole === 'moderator';
+
+  if (reportObj.isAnonymous && !isAuthor && !isStaff) {
+    reportObj.reportedBy = {
+      fullName: 'Anonymous Citizen',
+    };
+  }
+
+  // Requirement 8: Keep reports unverified until appropriately reviewed.
+  // Do not publicly expose unverified accusations against identifiable businesses.
+  if (
+    reportObj.category === 'food-safety' &&
+    reportObj.foodSafetyDetails?.establishmentName &&
+    !reportObj.verified &&
+    !isAuthor &&
+    !isStaff
+  ) {
+    reportObj.foodSafetyDetails = {
+      ...reportObj.foodSafetyDetails,
+      establishmentName:
+        '[Establishment name withheld pending moderator verification]',
+    };
+  }
+
+  return reportObj;
+}
+
 export async function createReport(
   req: AuthenticatedRequest & { body: CreateReportRequestBody },
   res: Response,
@@ -139,8 +205,18 @@ export async function createReport(
       return;
     }
 
-    const { title, description, category, images, location, priority, isAnonymous } =
-      req.body;
+    const {
+      title,
+      description,
+      category,
+      images,
+      location,
+      priority,
+      isAnonymous,
+      foodSafetyDetails,
+      environmentalDetails,
+      locationMeta,
+    } = req.body;
 
     if (!title || typeof title !== 'string' || title.trim().length < 3) {
       res.status(400).json({
@@ -195,52 +271,210 @@ export async function createReport(
       });
       return;
     }
+
+    let validatedFoodSafetyDetails: IFoodSafetyDetails | undefined = undefined;
+
+    if (foodSafetyDetails) {
+      const {
+        establishmentName,
+        foodItem,
+        incidentDate,
+        concernType,
+        officialFiling,
+      } = foodSafetyDetails;
+
+      const VALID_CONCERNS: FoodSafetyConcernType[] = [
+        'hygiene',
+        'adulteration',
+        'expired',
+        'foreign-object',
+        'food-poisoning',
+        'misbranding',
+        'other',
+      ];
+
+      if (concernType !== undefined && !VALID_CONCERNS.includes(concernType)) {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid food safety concern type provided.',
+        });
+        return;
+      }
+
+      let parsedIncidentDate: Date | undefined = undefined;
+      if (incidentDate) {
+        const parsed = new Date(incidentDate);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({
+            success: false,
+            message: 'Invalid incident date provided.',
+          });
+          return;
+        }
+        if (parsed.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+          res.status(400).json({
+            success: false,
+            message: 'Incident date cannot be in the future.',
+          });
+          return;
+        }
+        parsedIncidentDate = parsed;
+      }
+
+      let parsedOfficialFiling: IFoodSafetyOfficialFiling | undefined = undefined;
+      if (officialFiling) {
+        if (
+          officialFiling.status &&
+          !['not_filed', 'filed_by_citizen'].includes(officialFiling.status)
+        ) {
+          res.status(400).json({
+            success: false,
+            message: 'Invalid official filing status.',
+          });
+          return;
+        }
+
+        let parsedFilingDate: Date | undefined = undefined;
+        if (officialFiling.filingDate) {
+          const fd = new Date(officialFiling.filingDate);
+          if (Number.isNaN(fd.getTime())) {
+            res.status(400).json({
+              success: false,
+              message: 'Invalid filing date provided.',
+            });
+            return;
+          }
+          parsedFilingDate = fd;
+        }
+
+        parsedOfficialFiling = {
+          status: officialFiling.status || 'not_filed',
+          docketNumber: officialFiling.docketNumber
+            ? String(officialFiling.docketNumber).trim().slice(0, 50)
+            : undefined,
+          channelName: officialFiling.channelName
+            ? String(officialFiling.channelName).trim().slice(0, 100)
+            : undefined,
+          filingDate: parsedFilingDate,
+        };
+      }
+
+      validatedFoodSafetyDetails = {
+        establishmentName: establishmentName
+          ? String(establishmentName).trim().slice(0, 150)
+          : undefined,
+        foodItem: foodItem ? String(foodItem).trim().slice(0, 150) : undefined,
+        incidentDate: parsedIncidentDate,
+        concernType,
+        officialFiling: parsedOfficialFiling,
+      };
+    }
+
     const existingDuplicate = await Report.findOne({
-  category,
-  isDuplicate: false,
-  location: {
-    $near: {
-      $geometry: location,
-      $maxDistance: 50,
-    },
-  },
-});
-const newReport = await Report.create({
-  title: title.trim(),
-  description: description.trim(),
-  category,
-  images: images ?? [],
-  location,
-  reportedBy: req.userId,
-  priority: priority ?? 'low',
-  isDuplicate: !!existingDuplicate,
-  isAnonymous: isAnonymous ?? false,
-});
+      category,
+      isDuplicate: false,
+      location: {
+        $near: {
+          $geometry: location,
+          $maxDistance: 50,
+        },
+      },
+    });
 
-// Update user reputation
-await User.findByIdAndUpdate(req.userId, {
-  $inc: {
-    reputationPoints: 10,
-    trustScore: 2,
-    totalReports: 1,
-  },
-});
+    const reportData: Record<string, any> = {
+      title: title.trim(),
+      description: description.trim(),
+      category,
+      images: images ?? [],
+      location,
+      reportedBy: req.userId,
+      priority: priority ?? 'low',
+      isDuplicate: !!existingDuplicate,
+      isAnonymous: isAnonymous ?? false,
+    };
 
-// Update user badges
-await updateUserBadges(req.userId);
+    if (validatedFoodSafetyDetails) {
+      reportData.foodSafetyDetails = validatedFoodSafetyDetails;
+    }
 
-const populatedReport = await newReport.populate(
-  'reportedBy',
-  'fullName email',
-);
+    if (environmentalDetails && typeof environmentalDetails === 'object') {
+      const envObj: Record<string, unknown> = {
+        isCitizenEstimate: true,
+      };
+      if (typeof environmentalDetails.suspectedSource === 'string' && environmentalDetails.suspectedSource.trim()) {
+        envObj.suspectedSource = environmentalDetails.suspectedSource.trim().slice(0, 200);
+      }
+      if (
+        typeof environmentalDetails.noiseDecibelsEstimate === 'number' &&
+        Number.isFinite(environmentalDetails.noiseDecibelsEstimate) &&
+        environmentalDetails.noiseDecibelsEstimate >= 0 &&
+        environmentalDetails.noiseDecibelsEstimate <= 200
+      ) {
+        envObj.noiseDecibelsEstimate = environmentalDetails.noiseDecibelsEstimate;
+      }
+      if (
+        typeof environmentalDetails.waterPhEstimate === 'number' &&
+        Number.isFinite(environmentalDetails.waterPhEstimate) &&
+        environmentalDetails.waterPhEstimate >= 0 &&
+        environmentalDetails.waterPhEstimate <= 14
+      ) {
+        envObj.waterPhEstimate = environmentalDetails.waterPhEstimate;
+      }
+      if (typeof environmentalDetails.waterTurbidityNote === 'string' && environmentalDetails.waterTurbidityNote.trim()) {
+        envObj.waterTurbidityNote = environmentalDetails.waterTurbidityNote.trim().slice(0, 200);
+      }
+      if (
+        typeof environmentalDetails.affectedRadiusMeters === 'number' &&
+        Number.isFinite(environmentalDetails.affectedRadiusMeters) &&
+        environmentalDetails.affectedRadiusMeters >= 1 &&
+        environmentalDetails.affectedRadiusMeters <= 50000
+      ) {
+        envObj.affectedRadiusMeters = environmentalDetails.affectedRadiusMeters;
+      }
+      reportData.environmentalDetails = envObj;
+    }
 
-res.status(201).json({
-  success: true,
-  message: 'Report created successfully.',
-  data: {
-    report: populatedReport,
-  },
-});
+    if (locationMeta && typeof locationMeta === 'object') {
+      reportData.locationMeta = {
+        ...(typeof locationMeta.city === 'string' && locationMeta.city.trim() ? { city: locationMeta.city.trim().slice(0, 100) } : {}),
+        ...(typeof locationMeta.district === 'string' && locationMeta.district.trim() ? { district: locationMeta.district.trim().slice(0, 100) } : {}),
+        ...(typeof locationMeta.state === 'string' && locationMeta.state.trim() ? { state: locationMeta.state.trim().slice(0, 100) } : {}),
+        ...(typeof locationMeta.locality === 'string' && locationMeta.locality.trim() ? { locality: locationMeta.locality.trim().slice(0, 120) } : {}),
+      };
+    }
+
+    const newReport = await Report.create(reportData);
+
+    // Update user reputation
+    await User.findByIdAndUpdate(req.userId, {
+      $inc: {
+        reputationPoints: 10,
+        trustScore: 2,
+        totalReports: 1,
+      },
+    });
+
+    // Update user badges
+    await updateUserBadges(req.userId);
+
+    const populatedReport = await newReport.populate(
+      'reportedBy',
+      'fullName email',
+    );
+
+    const sanitizedReport = sanitizeReportForViewer(
+      populatedReport,
+      req.userId,
+      req.userRole,
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Report created successfully.',
+      data: {
+        report: sanitizedReport,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -386,15 +620,11 @@ export async function getAllReports(
     ]);
 
     const sanitizedReports = reports.map((report) => {
-      const reportObj = report.toObject() as any;
-
-      if (reportObj.isAnonymous) {
-        reportObj.reportedBy = {
-          fullName: 'Anonymous Citizen',
-        } as any;
-      }
-
-      return reportObj;
+      return sanitizeReportForViewer(
+        report,
+        (req as AuthenticatedRequest).userId,
+        (req as AuthenticatedRequest).userRole,
+      );
     });
 
     res.status(200).json({
@@ -442,18 +672,16 @@ export async function getReportById(
       return;
     }
 
-    const reportObj = report.toObject() as any;
-
-    if (reportObj.isAnonymous) {
-      reportObj.reportedBy = {
-        fullName: 'Anonymous Citizen',
-      };
-    }
+    const sanitizedReport = sanitizeReportForViewer(
+      report,
+      (req as AuthenticatedRequest).userId,
+      (req as AuthenticatedRequest).userRole,
+    );
 
     res.status(200).json({
       success: true,
       data: {
-        report: reportObj,
+        report: sanitizedReport,
       },
     });
   } catch (error) {
@@ -702,15 +930,11 @@ export async function getNearbyReports(
       .sort({ createdAt: -1 });
 
     const sanitizedReports = reports.map((report) => {
-      const reportObj = report.toObject() as any;
-
-      if (reportObj.isAnonymous) {
-        reportObj.reportedBy = {
-          fullName: "Anonymous Citizen",
-        };
-      }
-
-      return reportObj;
+      return sanitizeReportForViewer(
+        report,
+        (req as AuthenticatedRequest).userId,
+        (req as AuthenticatedRequest).userRole,
+      );
     });
 
     res.status(200).json({
@@ -1053,15 +1277,11 @@ export async function searchReports(
     }).populate('reportedBy', 'fullName email');
 
     const sanitizedReports = reports.map((report) => {
-      const reportObj = report.toObject() as any;
-
-      if (reportObj.isAnonymous) {
-        reportObj.reportedBy = {
-          fullName: 'Anonymous Citizen',
-        };
-      }
-
-      return reportObj;
+      return sanitizeReportForViewer(
+        report,
+        (req as AuthenticatedRequest).userId,
+        (req as AuthenticatedRequest).userRole,
+      );
     });
 
     res.status(200).json({
@@ -1128,6 +1348,152 @@ export async function verifyReport(
         : 'Report marked as unverified.',
       data: {
         report: populatedReport,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateOfficialFiling(
+  req: AuthenticatedRequest & {
+    params: { id: string };
+    body: UpdateOfficialFilingRequestBody;
+  },
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.userId) {
+      res.status(401).json({
+        success: false,
+        message: 'Not authenticated.',
+      });
+      return;
+    }
+
+    const { id } = req.params;
+    const { status, docketNumber, filingDate, channelName } = req.body;
+
+    if (!isValidObjectId(id)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid report ID.',
+      });
+      return;
+    }
+
+    const report = await Report.findById(id);
+
+    if (!report) {
+      res.status(404).json({
+        success: false,
+        message: 'Report not found.',
+      });
+      return;
+    }
+
+    const user = await User.findById(req.userId).select('role');
+    const isAuthor = report.reportedBy.toString() === req.userId;
+    const isStaff = user?.role === 'admin' || user?.role === 'moderator';
+
+    if (!isAuthor && !isStaff) {
+      res.status(403).json({
+        success: false,
+        message:
+          'Only the report owner or authorized staff can update official complaint records.',
+      });
+      return;
+    }
+
+    if (
+      status !== undefined &&
+      status !== 'not_filed' &&
+      status !== 'filed_by_citizen'
+    ) {
+      res.status(400).json({
+        success: false,
+        message:
+          'Invalid official filing status. Allowed: not_filed, filed_by_citizen.',
+      });
+      return;
+    }
+
+    if (!report.foodSafetyDetails) {
+      report.foodSafetyDetails = {};
+    }
+
+    const currentFiling = report.foodSafetyDetails.officialFiling || {
+      status: 'not_filed',
+    };
+
+    if (status !== undefined) {
+      currentFiling.status = status;
+    }
+
+    if (docketNumber !== undefined) {
+      const cleanDocket = String(docketNumber).trim();
+      if (cleanDocket.length > 50) {
+        res.status(400).json({
+          success: false,
+          message: 'Docket number must not exceed 50 characters.',
+        });
+        return;
+      }
+      currentFiling.docketNumber = cleanDocket || undefined;
+    }
+
+    if (channelName !== undefined) {
+      const cleanChannel = String(channelName).trim();
+      if (cleanChannel.length > 100) {
+        res.status(400).json({
+          success: false,
+          message: 'Channel name must not exceed 100 characters.',
+        });
+        return;
+      }
+      currentFiling.channelName = cleanChannel || undefined;
+    }
+
+    if (filingDate !== undefined) {
+      const parsedDate = new Date(filingDate);
+      if (Number.isNaN(parsedDate.getTime())) {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid filing date provided.',
+        });
+        return;
+      }
+      if (parsedDate.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+        res.status(400).json({
+          success: false,
+          message: 'Filing date cannot be in the future.',
+        });
+        return;
+      }
+      currentFiling.filingDate = parsedDate;
+    }
+
+    report.foodSafetyDetails.officialFiling = currentFiling;
+    report.markModified('foodSafetyDetails');
+    await report.save();
+
+    const populatedReport = await report.populate(
+      'reportedBy',
+      'fullName email',
+    );
+
+    const sanitizedReport = sanitizeReportForViewer(
+      populatedReport,
+      req.userId,
+      user?.role,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Official complaint record updated successfully.',
+      data: {
+        report: sanitizedReport,
       },
     });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 import {
   getAllServices,
@@ -33,10 +34,10 @@ router.get("/:id", getServiceById);
 // Admin Routes
 // ===============================
 
-router.post("/", authMiddleware, createService);
+router.post("/", authMiddleware, authorizeRoles("moderator", "admin"), createService);
 
-router.put("/:id", authMiddleware, updateService);
+router.put("/:id", authMiddleware, authorizeRoles("moderator", "admin"), updateService);
 
-router.delete("/:id", authMiddleware, deleteService);
+router.delete("/:id", authMiddleware, authorizeRoles("moderator", "admin"), deleteService);
 
 export default router;

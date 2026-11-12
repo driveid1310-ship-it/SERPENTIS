@@ -13,6 +13,7 @@ import {
   updateReportPriority,
   searchReports,
   verifyReport,
+  updateOfficialFiling,
   getCityStats,
 } from '../controllers/reportController.js';
 import { uploadReportImage as uploadReportImageController } from '../controllers/reportImageController.js';
@@ -88,6 +89,7 @@ router.get('/:id', getReportById);
 // Update Report
 // ===============================
 router.put('/:id', authMiddleware, updateReport);
+router.patch('/:id/official-filing', authMiddleware, updateOfficialFiling);
 
 // ===============================
 // Delete Report

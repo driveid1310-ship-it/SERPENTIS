@@ -54,7 +54,7 @@ export async function createComment(
       user: req.userId,
     });
 
-    const populatedComment = await comment.populate('user', 'name email');
+    const populatedComment = await comment.populate('user', 'fullName email profilePicture');
 
     if (report.reportedBy.toString() !== req.userId) {
       try {
@@ -96,7 +96,7 @@ export async function getComments(
     }
 
     const comments = await Comment.find({ report: reportId })
-      .populate('user', 'name email')
+      .populate('user', 'fullName email profilePicture')
       .sort({ createdAt: -1 });
 
     res.status(200).json({

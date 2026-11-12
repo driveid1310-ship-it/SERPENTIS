@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 import {
   getAllPlaces,
@@ -67,9 +68,9 @@ router.delete("/:id/favorite", authMiddleware, unfavoritePlace);
 // Admin / Moderator
 // ===============================
 
-router.post("/", authMiddleware, createPlace);
-router.put("/:id", authMiddleware, updatePlace);
-router.delete("/:id", authMiddleware, deletePlace);
+router.post("/", authMiddleware, authorizeRoles("moderator", "admin"), createPlace);
+router.put("/:id", authMiddleware, authorizeRoles("moderator", "admin"), updatePlace);
+router.delete("/:id", authMiddleware, authorizeRoles("moderator", "admin"), deletePlace);
 
 router.delete(
   "/review/:reviewId",

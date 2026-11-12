@@ -20,6 +20,11 @@ export async function uploadReportImageRequest(
   const response = await axiosInstance.post<ApiResponse<{ url: string }>>(
     '/reports/upload-image',
     formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    },
   );
 
   return response.data;
@@ -132,5 +137,21 @@ export async function verifyReportModeratorRequest(reportId: string, verified: b
 
 export async function updateReportPriorityModeratorRequest(reportId: string, priority: ReportSeverity): Promise<ApiResponse<{ report: Report }>> {
   const response = await axiosInstance.patch<ApiResponse<{ report: Report }>>(`/reports/${reportId}/priority`, { priority });
+  return response.data;
+}
+
+export async function updateOfficialFilingRequest(
+  reportId: string,
+  payload: {
+    status?: 'not_filed' | 'filed_by_citizen';
+    docketNumber?: string;
+    filingDate?: string;
+    channelName?: string;
+  },
+): Promise<ApiResponse<{ report: Report }>> {
+  const response = await axiosInstance.patch<ApiResponse<{ report: Report }>>(
+    `/reports/${reportId}/official-filing`,
+    payload,
+  );
   return response.data;
 }

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Image,
   ActivityIndicator,
   Pressable,
@@ -19,21 +19,23 @@ import { useRecentReports } from '../hooks/useRecentReports';
 import { useNotifications } from '../hooks/useNotifications';
 import type { ReportStatus } from '../types/report';
 import { useTheme } from '../context/ThemeContext';
+import { useCity } from '../context/CityContext';
+import { getUnifiedOverviewRequest } from '../api/environment';
+import type { UnifiedOverviewData } from '../types/environment';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const quickActions = [
-  {
-    title: 'SOS',
-    subtitle: 'Get emergency help',
-    icon: 'SOS',
-  },
-  {
-    title: 'Places',
-    subtitle: 'Explore nearby places',
-    icon: '⌖',
-  },
+  { title: 'Weather', subtitle: 'Forecast & heat index', icon: '☀️' },
+  { title: 'Air Quality', subtitle: 'CPCB AQI & pollutants', icon: '🌬️' },
+  { title: 'Alerts', subtitle: 'Climate risk warnings', icon: '⚠️' },
+  { title: 'Monitoring', subtitle: 'Noise, water & waste', icon: '🔬' },
+  { title: 'Analytics', subtitle: 'Trends & resolution', icon: '📈' },
+  { title: 'AI Assistant', subtitle: 'Ask about your city', icon: '🤖' },
+  { title: 'Smart Hub', subtitle: 'Scores, solar & carbon', icon: '🧠' },
   { title: 'Dashboard', subtitle: 'City statistics', icon: '📊' },
+  { title: 'Places', subtitle: 'Explore nearby places', icon: '📍' },
+  { title: 'SOS', subtitle: 'Get emergency help', icon: '🚨' },
 ];
 
 const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
@@ -75,6 +77,8 @@ export default function HomeScreen({
 }: HomeScreenProps) {
   const { theme } = useTheme();
   const styles = getStyles(theme);
+  const { selectedCity, temperatureUnit } = useCity();
+  const [climateOverview, setClimateOverview] = useState<UnifiedOverviewData | null>(null);
   const { user, refreshUser } = useAuth();
   const {
     status: trendingStatus,
@@ -104,7 +108,14 @@ export default function HomeScreen({
       refetchRecent();
       refetchNotifications();
       refreshUser().catch(() => {});
-    }, [refetchTrending, refetchRecent, refetchNotifications, refreshUser]),
+      getUnifiedOverviewRequest({ slug: selectedCity.slug, unit: temperatureUnit })
+        .then((res) => {
+          if (res.success && 'data' in res) {
+            setClimateOverview(res.data);
+          }
+        })
+        .catch(() => {});
+    }, [refetchTrending, refetchRecent, refetchNotifications, refreshUser, selectedCity.slug, temperatureUnit]),
   );
 
   const firstName = user?.fullName?.split(' ')[0] || 'Citizen';
@@ -152,6 +163,78 @@ export default function HomeScreen({
                   </Text>
                 </View>
               ) : null}
+            </Pressable>
+          </View>
+        </View>
+
+        {/* City Climate & Intelligence Overview */}
+        <View style={styles.climateCard}>
+          <View style={styles.climateTopRow}>
+            <Pressable
+              onPress={() => navigation.navigate('CitySelector')}
+              style={styles.citySelectorChip}
+            >
+              <Text style={styles.citySelectorText}>
+                📍 {selectedCity.name}, {selectedCity.state} ▾
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate('EnvironmentalAlerts')}
+              style={styles.alertChip}
+            >
+              <Text style={styles.alertChipText}>
+                {climateOverview
+                  ? `${climateOverview.alerts.length} Alert${climateOverview.alerts.length === 1 ? '' : 's'}`
+                  : 'Alerts'}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.climateStatsRow}>
+            <Pressable
+              style={styles.climateStatBox}
+              onPress={() => navigation.navigate('Weather')}
+            >
+              <Text style={styles.climateStatLabel}>WEATHER</Text>
+              <Text style={styles.climateStatValue}>
+                {climateOverview
+                  ? `${climateOverview.weather.display.temperature}°${temperatureUnit}`
+                  : '—'}
+              </Text>
+              <Text style={styles.climateStatSub} numberOfLines={1}>
+                {climateOverview?.weather.current.condition ?? 'Tap to view'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.climateStatBox}
+              onPress={() => navigation.navigate('AirQuality')}
+            >
+              <Text style={styles.climateStatLabel}>CPCB AQI</Text>
+              <Text
+                style={[
+                  styles.climateStatValue,
+                  climateOverview ? { color: climateOverview.airQuality.aqiColorHex } : null,
+                ]}
+              >
+                {climateOverview?.airQuality.overallAqi ?? '—'}
+              </Text>
+              <Text style={styles.climateStatSub} numberOfLines={1}>
+                {climateOverview?.airQuality.aqiCategory ?? 'Tap to view'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.climateStatBox}
+              onPress={() => navigation.navigate('CityIntelligence')}
+            >
+              <Text style={styles.climateStatLabel}>ENV SCORE</Text>
+              <Text style={styles.climateStatValue}>
+                {climateOverview?.scores.environmentalHealth.score ?? '—'}
+              </Text>
+              <Text style={styles.climateStatSub} numberOfLines={1}>
+                {climateOverview?.scores.environmentalHealth.band ?? 'Smart Hub'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -208,14 +291,21 @@ export default function HomeScreen({
             <Pressable
               key={action.title}
               onPress={() => {
-                if (action.title === 'Places') {
-                  navigation.navigate('Places');
-                }
-                if (action.title === 'SOS') {
-                  navigation.navigate('SOS');
-                }
-                if (action.title === 'Dashboard') {
-                  navigation.navigate('Dashboard');
+                const routeMap: Record<string, keyof RootStackParamList> = {
+                  Weather: 'Weather',
+                  'Air Quality': 'AirQuality',
+                  Alerts: 'EnvironmentalAlerts',
+                  Monitoring: 'EnvironmentalMonitoring',
+                  Analytics: 'EnvironmentalAnalytics',
+                  'AI Assistant': 'CityAssistant',
+                  'Smart Hub': 'CityIntelligence',
+                  Dashboard: 'Dashboard',
+                  Places: 'Places',
+                  SOS: 'SOS',
+                };
+                const target = routeMap[action.title];
+                if (target) {
+                  navigation.navigate(target as any);
                 }
               }}
               style={({ pressed }) => [
@@ -244,7 +334,9 @@ export default function HomeScreen({
             </Text>
           </View>
 
-          <Text style={styles.viewAll}>View all</Text>
+          <Pressable onPress={() => navigation.navigate('Dashboard')}>
+            <Text style={styles.viewAll}>View all</Text>
+          </Pressable>
         </View>
 
         {recentStatus === 'loading' ? (
@@ -821,5 +913,71 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: theme.spacing.xl,
     marginBottom: theme.spacing.md,
+  },
+  climateCard: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  climateTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  citySelectorChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: theme.radius.round,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  citySelectorText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
+  },
+  alertChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: theme.radius.round,
+    backgroundColor: theme.colors.primarySoft,
+  },
+  alertChipText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
+  },
+  climateStatsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  climateStatBox: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+  },
+  climateStatLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: theme.colors.textTertiary,
+  },
+  climateStatValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: theme.colors.text,
+    marginVertical: 2,
+  },
+  climateStatSub: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
   },
 });

@@ -8,7 +8,61 @@ export type ReportCategory =
   | 'traffic'
   | 'pollution'
   | 'stray-animals'
+  | 'food-safety'
+  | 'air-pollution'
+  | 'water-contamination'
+  | 'noise-pollution'
+  | 'tree-cutting'
+  | 'waterlogging'
+  | 'drainage-blockage'
+  | 'industrial-pollution'
+  | 'open-burning'
+  | 'environmental-other'
   | 'other';
+
+export interface IEnvironmentalReportDetails {
+  suspectedSource?: string | undefined;
+  noiseDecibelsEstimate?: number | undefined;
+  waterPhEstimate?: number | undefined;
+  waterTurbidityNote?: string | undefined;
+  affectedRadiusMeters?: number | undefined;
+  isCitizenEstimate?: boolean | undefined;
+}
+
+export interface IReportLocationMeta {
+  city?: string | undefined;
+  district?: string | undefined;
+  state?: string | undefined;
+  locality?: string | undefined;
+}
+
+export type FoodSafetyConcernType =
+  | 'hygiene'
+  | 'adulteration'
+  | 'expired'
+  | 'foreign-object'
+  | 'food-poisoning'
+  | 'misbranding'
+  | 'other';
+
+export type OfficialFilingStatus =
+  | 'not_filed'
+  | 'filed_by_citizen';
+
+export interface IFoodSafetyOfficialFiling {
+  status: OfficialFilingStatus;
+  docketNumber?: string | undefined;
+  filingDate?: Date | undefined;
+  channelName?: string | undefined;
+}
+
+export interface IFoodSafetyDetails {
+  establishmentName?: string | undefined;
+  foodItem?: string | undefined;
+  incidentDate?: Date | undefined;
+  concernType?: FoodSafetyConcernType | undefined;
+  officialFiling?: IFoodSafetyOfficialFiling | undefined;
+}
 
 export type ReportStatus =
   | 'pending'
@@ -50,11 +104,18 @@ export interface IReport extends Document {
   verifiedBy: Types.ObjectId | null;
   moderatorRemark: string;
 
+  // Food Safety Extension
+  foodSafetyDetails?: IFoodSafetyDetails | undefined;
+
+  // Environmental Intelligence Extension
+  environmentalDetails?: IEnvironmentalReportDetails | undefined;
+  locationMeta?: IReportLocationMeta | undefined;
+
   createdAt: Date;
   updatedAt: Date;
 }
 
-const REPORT_CATEGORIES: ReportCategory[] = [
+export const REPORT_CATEGORIES: ReportCategory[] = [
   'pothole',
   'garbage',
   'water-leakage',
@@ -62,6 +123,16 @@ const REPORT_CATEGORIES: ReportCategory[] = [
   'traffic',
   'pollution',
   'stray-animals',
+  'food-safety',
+  'air-pollution',
+  'water-contamination',
+  'noise-pollution',
+  'tree-cutting',
+  'waterlogging',
+  'drainage-blockage',
+  'industrial-pollution',
+  'open-burning',
+  'environmental-other',
   'other',
 ];
 
@@ -187,6 +258,98 @@ const reportSchema = new Schema<IReport>(
       default: '',
       trim: true,
     },
+
+    // Food Safety Action System Details
+    foodSafetyDetails: {
+      establishmentName: {
+        type: String,
+        trim: true,
+        maxlength: [150, 'Establishment name must not exceed 150 characters.'],
+      },
+      foodItem: {
+        type: String,
+        trim: true,
+        maxlength: [150, 'Food item name must not exceed 150 characters.'],
+      },
+      incidentDate: {
+        type: Date,
+      },
+      concernType: {
+        type: String,
+        enum: {
+          values: [
+            'hygiene',
+            'adulteration',
+            'expired',
+            'foreign-object',
+            'food-poisoning',
+            'misbranding',
+            'other',
+          ],
+          message: 'Invalid food safety concern type.',
+        },
+      },
+      officialFiling: {
+        status: {
+          type: String,
+          enum: ['not_filed', 'filed_by_citizen'],
+          default: 'not_filed',
+        },
+        docketNumber: {
+          type: String,
+          trim: true,
+          maxlength: [50, 'Docket number must not exceed 50 characters.'],
+        },
+        filingDate: {
+          type: Date,
+        },
+        channelName: {
+          type: String,
+          trim: true,
+          maxlength: [100, 'Channel name must not exceed 100 characters.'],
+        },
+      },
+    },
+
+    // Environmental Report Details (citizen observations, clearly marked as citizen estimates)
+    environmentalDetails: {
+      suspectedSource: {
+        type: String,
+        trim: true,
+        maxlength: [200, 'Suspected source must not exceed 200 characters.'],
+      },
+      noiseDecibelsEstimate: {
+        type: Number,
+        min: 0,
+        max: 200,
+      },
+      waterPhEstimate: {
+        type: Number,
+        min: 0,
+        max: 14,
+      },
+      waterTurbidityNote: {
+        type: String,
+        trim: true,
+        maxlength: [200, 'Water turbidity note must not exceed 200 characters.'],
+      },
+      affectedRadiusMeters: {
+        type: Number,
+        min: 1,
+        max: 50000,
+      },
+      isCitizenEstimate: {
+        type: Boolean,
+        default: true,
+      },
+    },
+
+    locationMeta: {
+      city: { type: String, trim: true },
+      district: { type: String, trim: true },
+      state: { type: String, trim: true },
+      locality: { type: String, trim: true },
+    },
   },
   {
     timestamps: true,
@@ -200,6 +363,8 @@ reportSchema.index({
 reportSchema.index({ status: 1 });
 reportSchema.index({ category: 1 });
 reportSchema.index({ reportedBy: 1 });
+reportSchema.index({ 'foodSafetyDetails.establishmentName': 1 });
+reportSchema.index({ 'locationMeta.city': 1, category: 1 });
 
 const Report = model<IReport>('Report', reportSchema);
 

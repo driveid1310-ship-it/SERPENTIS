@@ -99,7 +99,7 @@ export async function uploadReportImage(asset: Asset): Promise<string> {
 
     if (
       typeof response.data.url !== 'string' ||
-      !response.data.url.startsWith('https://')
+      !/^https?:\/\//i.test(response.data.url)
     ) {
       throw new ReportImageUploadError(
         'The server returned an invalid image URL. Please try again.',

@@ -23,12 +23,18 @@ import AppCard from '../components/Card/AppCard';
 import AppButton from '../components/Button/AppButton';
 import AppInput from '../components/Input/AppInput';
 import { useTheme } from '../context/ThemeContext';
+import { useCity } from '../context/CityContext';
 import { useReports } from '../hooks/useReports';
 import { useLocation } from '../hooks/useLocation';
 import {
   ReportImageUploadError,
   uploadReportImage,
 } from '../services/reportService';
+import type {
+  FoodSafetyConcernType,
+  ReportCategory,
+  ReportSeverity,
+} from '../types/report';
 
 type ReportIssueScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -39,32 +45,45 @@ interface ReportIssueScreenProps {
   navigation: ReportIssueScreenNavigationProp;
 }
 
-type ReportCategory =
-  | 'pothole'
-  | 'garbage'
-  | 'water-leakage'
-  | 'streetlight'
-  | 'traffic'
-  | 'pollution'
-  | 'stray-animals'
-  | 'other';
-
-type ReportSeverity = 'low' | 'medium' | 'high';
-
 interface CategoryOption {
   key: ReportCategory;
   label: string;
+  group: 'civic' | 'environmental';
 }
 
 const CATEGORY_OPTIONS: CategoryOption[] = [
-  { key: 'pothole', label: 'Pothole' },
-  { key: 'garbage', label: 'Garbage' },
-  { key: 'water-leakage', label: 'Water Leakage' },
-  { key: 'streetlight', label: 'Streetlight' },
-  { key: 'traffic', label: 'Traffic' },
-  { key: 'pollution', label: 'Pollution' },
-  { key: 'stray-animals', label: 'Stray Animals' },
-  { key: 'other', label: 'Other' },
+  { key: 'pothole', label: 'Pothole', group: 'civic' },
+  { key: 'garbage', label: 'Garbage', group: 'civic' },
+  { key: 'water-leakage', label: 'Water Leakage', group: 'civic' },
+  { key: 'streetlight', label: 'Streetlight', group: 'civic' },
+  { key: 'traffic', label: 'Traffic', group: 'civic' },
+  { key: 'stray-animals', label: 'Stray Animals', group: 'civic' },
+  { key: 'food-safety', label: 'Food Safety', group: 'civic' },
+  { key: 'other', label: 'Other Civic', group: 'civic' },
+  { key: 'air-pollution', label: 'Air Pollution', group: 'environmental' },
+  { key: 'water-contamination', label: 'Water Contamination', group: 'environmental' },
+  { key: 'noise-pollution', label: 'Noise Pollution', group: 'environmental' },
+  { key: 'tree-cutting', label: 'Tree Cutting', group: 'environmental' },
+  { key: 'waterlogging', label: 'Waterlogging', group: 'environmental' },
+  { key: 'drainage-blockage', label: 'Drainage Blockage', group: 'environmental' },
+  { key: 'industrial-pollution', label: 'Industrial Pollution', group: 'environmental' },
+  { key: 'open-burning', label: 'Open Burning', group: 'environmental' },
+  { key: 'pollution', label: 'General Pollution', group: 'environmental' },
+  { key: 'environmental-other', label: 'Other Environmental', group: 'environmental' },
+];
+
+const ENVIRONMENTAL_CATEGORY_KEYS = new Set<ReportCategory>(
+  CATEGORY_OPTIONS.filter((c) => c.group === 'environmental').map((c) => c.key),
+);
+
+const FOOD_CONCERN_OPTIONS: { key: FoodSafetyConcernType; label: string }[] = [
+  { key: 'hygiene', label: 'Unsanitary Premises' },
+  { key: 'foreign-object', label: 'Foreign Object' },
+  { key: 'expired', label: 'Expired Item' },
+  { key: 'food-poisoning', label: 'Food Poisoning' },
+  { key: 'adulteration', label: 'Adulteration' },
+  { key: 'misbranding', label: 'Misleading Label' },
+  { key: 'other', label: 'Other Concern' },
 ];
 
 const SEVERITY_OPTIONS: { key: ReportSeverity; label: string }[] = [
@@ -85,6 +104,16 @@ const REPORT_TITLE_BY_CATEGORY: Record<ReportCategory, string> = {
   traffic: 'Traffic Report',
   pollution: 'Pollution Report',
   'stray-animals': 'Stray Animal Report',
+  'food-safety': 'Food Safety Incident Report',
+  'air-pollution': 'Air Pollution Report',
+  'water-contamination': 'Water Contamination Report',
+  'noise-pollution': 'Noise Pollution Report',
+  'tree-cutting': 'Tree Cutting Report',
+  waterlogging: 'Waterlogging Report',
+  'drainage-blockage': 'Drainage Blockage Report',
+  'industrial-pollution': 'Industrial Pollution Report',
+  'open-burning': 'Open Burning Report',
+  'environmental-other': 'Environmental Issue Report',
   other: 'Issue Report',
 };
 
@@ -105,13 +134,22 @@ export default function ReportIssueScreen({
   navigation,
 }: ReportIssueScreenProps) {
   const { theme } = useTheme();
+  const { selectedCity } = useCity();
   const styles = getStyles(theme);
   const [selectedCategory, setSelectedCategory] =
     useState<ReportCategory | null>(null);
+  const [categoryGroup, setCategoryGroup] = useState<'civic' | 'environmental'>('civic');
+  const [suspectedSource, setSuspectedSource] = useState('');
+  const [noiseEstimateInput, setNoiseEstimateInput] = useState('');
+  const [waterNoteInput, setWaterNoteInput] = useState('');
   const [selectedSeverity, setSelectedSeverity] =
     useState<ReportSeverity | null>(null);
   const [description, setDescription] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [establishmentName, setEstablishmentName] = useState('');
+  const [foodItem, setFoodItem] = useState('');
+  const [concernType, setConcernType] =
+    useState<FoodSafetyConcernType>('hygiene');
   const [errors, setErrors] = useState<FormErrors>({});
   const [selectedPhoto, setSelectedPhoto] = useState<Asset | null>(null);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
@@ -153,6 +191,11 @@ export default function ReportIssueScreen({
     const asset = response.assets?.[0];
     if (!asset?.uri) {
       setPhotoError('The selected photo could not be accessed. Please try again.');
+      return;
+    }
+
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+      setPhotoError('Please select an image smaller than 5 MB.');
       return;
     }
 
@@ -306,6 +349,38 @@ export default function ReportIssueScreen({
       }
     }
 
+    const foodSafetyDetails =
+      selectedCategory === 'food-safety'
+        ? {
+            establishmentName: establishmentName.trim() || undefined,
+            foodItem: foodItem.trim() || undefined,
+            concernType,
+            incidentDate: new Date().toISOString(),
+            officialFiling: {
+              status: 'not_filed' as const,
+            },
+          }
+        : undefined;
+
+    const isEnvironmental = ENVIRONMENTAL_CATEGORY_KEYS.has(selectedCategory);
+    const parsedNoise = Number(noiseEstimateInput);
+    const environmentalDetails = isEnvironmental
+      ? {
+          suspectedSource: suspectedSource.trim() || undefined,
+          noiseDecibelsEstimate:
+            selectedCategory === 'noise-pollution' &&
+            noiseEstimateInput.trim() !== '' &&
+            Number.isFinite(parsedNoise)
+              ? parsedNoise
+              : undefined,
+          waterTurbidityNote:
+            selectedCategory === 'water-contamination' && waterNoteInput.trim() !== ''
+              ? waterNoteInput.trim()
+              : undefined,
+          isCitizenEstimate: true,
+        }
+      : undefined;
+
     await submit({
       title: generateReportTitle(selectedCategory),
       description: description.trim(),
@@ -314,6 +389,14 @@ export default function ReportIssueScreen({
       location,
       priority: selectedSeverity,
       isAnonymous,
+      foodSafetyDetails,
+      environmentalDetails,
+      locationMeta: {
+        city: selectedCity.city,
+        district: selectedCity.district,
+        state: selectedCity.state,
+        locality: selectedCity.locality,
+      },
     });
   }, [
     validateForm,
@@ -324,6 +407,13 @@ export default function ReportIssueScreen({
     selectedPhoto,
     uploadedPhotoUrl,
     isAnonymous,
+    establishmentName,
+    foodItem,
+    concernType,
+    suspectedSource,
+    noiseEstimateInput,
+    waterNoteInput,
+    selectedCity,
     submit,
   ]);
 
@@ -475,11 +565,47 @@ export default function ReportIssueScreen({
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Issue Category</Text>
+        <View style={styles.rowButtons}>
+          <Pressable
+            onPress={() => setCategoryGroup('civic')}
+            style={[
+              styles.categoryChip,
+              styles.rowButton,
+              categoryGroup === 'civic' && styles.categoryChipSelected,
+            ]}
+          >
+            <Text
+              style={[
+                styles.categoryChipText,
+                categoryGroup === 'civic' && styles.categoryChipTextSelected,
+              ]}
+            >
+              Civic Issues
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setCategoryGroup('environmental')}
+            style={[
+              styles.categoryChip,
+              styles.rowButton,
+              categoryGroup === 'environmental' && styles.categoryChipSelected,
+            ]}
+          >
+            <Text
+              style={[
+                styles.categoryChipText,
+                categoryGroup === 'environmental' && styles.categoryChipTextSelected,
+              ]}
+            >
+              Environmental
+            </Text>
+          </Pressable>
+        </View>
         {errors.category ? (
           <Text style={styles.fieldErrorText}>{errors.category}</Text>
         ) : null}
         <View style={styles.categoryGrid}>
-          {CATEGORY_OPTIONS.map((category) => {
+          {CATEGORY_OPTIONS.filter((c) => c.group === categoryGroup).map((category) => {
             const isSelected = selectedCategory === category.key;
             return (
               <View key={category.key} style={styles.categoryItem}>
@@ -505,6 +631,111 @@ export default function ReportIssueScreen({
           })}
         </View>
       </View>
+
+      {selectedCategory && ENVIRONMENTAL_CATEGORY_KEYS.has(selectedCategory) ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Environmental Observation Details</Text>
+          <AppCard elevation="sm">
+            <Text style={styles.noticeText}>
+              Citizen observations are recorded separately from official CPCB/IMD monitoring station measurements.
+            </Text>
+            <View style={styles.fieldSpacing}>
+              <Text style={styles.inputSubLabel}>Suspected Source (Optional)</Text>
+              <AppInput
+                placeholder="e.g. Open waste burning, industrial discharge, blocked culvert"
+                value={suspectedSource}
+                onChangeText={setSuspectedSource}
+              />
+            </View>
+            {selectedCategory === 'noise-pollution' ? (
+              <View style={styles.fieldSpacing}>
+                <Text style={styles.inputSubLabel}>Estimated Noise Level dBA (Optional)</Text>
+                <AppInput
+                  placeholder="e.g. 85 (citizen estimate)"
+                  value={noiseEstimateInput}
+                  onChangeText={setNoiseEstimateInput}
+                  keyboardType="numeric"
+                />
+              </View>
+            ) : null}
+            {selectedCategory === 'water-contamination' ? (
+              <View style={styles.fieldSpacing}>
+                <Text style={styles.inputSubLabel}>Water Appearance / Odor Note (Optional)</Text>
+                <AppInput
+                  placeholder="e.g. Turbid brown water with chemical smell (not lab-tested)"
+                  value={waterNoteInput}
+                  onChangeText={setWaterNoteInput}
+                />
+              </View>
+            ) : null}
+          </AppCard>
+        </View>
+      ) : null}
+
+      {selectedCategory === 'food-safety' ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Food Incident Details</Text>
+          <AppCard elevation="sm">
+            <View style={styles.foodAdvisoryBanner}>
+              <Text style={styles.foodAdvisoryTitle}>⚠️ Food Safety & Evidence Advisory</Text>
+              <Text style={styles.foodAdvisoryText}>
+                SERPENTIS alerts local citizens. To request a formal inspection by statutory food authorities (e.g. FSSAI), use the official channels guide on the report details screen after submission.
+              </Text>
+              <Text style={styles.foodAdvisoryPrivacyText}>
+                🔒 Privacy Tip: If uploading a receipt, ensure personal card and phone numbers are blurred or cropped.
+              </Text>
+            </View>
+
+            <View style={styles.fieldSpacing}>
+              <Text style={styles.inputSubLabel}>Food Establishment / Vendor Name (Optional)</Text>
+              <AppInput
+                placeholder="e.g. Cafe Spice / Green Grocery"
+                value={establishmentName}
+                onChangeText={setEstablishmentName}
+              />
+            </View>
+
+            <View style={styles.fieldSpacing}>
+              <Text style={styles.inputSubLabel}>Affected Food Item / Dish (Optional)</Text>
+              <AppInput
+                placeholder="e.g. Fresh Milk Carton / Chicken Roll"
+                value={foodItem}
+                onChangeText={setFoodItem}
+              />
+            </View>
+
+            <View style={styles.fieldSpacing}>
+              <Text style={styles.inputSubLabel}>Concern Classification</Text>
+              <View style={styles.categoryGrid}>
+                {FOOD_CONCERN_OPTIONS.map((concern) => {
+                  const isSelected = concernType === concern.key;
+                  return (
+                    <View key={concern.key} style={styles.categoryItem}>
+                      <Pressable
+                        onPress={() => setConcernType(concern.key)}
+                        style={[
+                          styles.categoryChip,
+                          isSelected && styles.categoryChipSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryChipText,
+                            isSelected && styles.categoryChipTextSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {concern.label}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </AppCard>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Severity</Text>
@@ -809,5 +1040,38 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: theme.typography.fontSizes.xs,
     color: theme.colors.textSecondary,
     lineHeight: 18,
+  },
+  foodAdvisoryBanner: {
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: theme.radius.sm,
+    padding: theme.spacing.sm,
+  },
+  foodAdvisoryTitle: {
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: '#D97706',
+    marginBottom: 4,
+  },
+  foodAdvisoryText: {
+    fontSize: theme.typography.fontSizes.xs,
+    color: theme.colors.textSecondary,
+    lineHeight: 16,
+  },
+  inputSubLabel: {
+    fontSize: theme.typography.fontSizes.xs,
+    fontWeight: theme.typography.fontWeights.semibold,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  foodAdvisoryPrivacyText: {
+    fontSize: theme.typography.fontSizes.xs,
+    color: '#D97706',
+    lineHeight: 16,
+    marginTop: 6,
+  },
+  fieldSpacing: {
+    marginTop: 12,
   },
 });

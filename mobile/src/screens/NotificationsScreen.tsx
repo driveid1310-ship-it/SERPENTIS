@@ -29,6 +29,7 @@ const NOTIFICATION_TYPE_META: Record<NotificationType, NotificationTypeMeta> = {
   badge: { label: 'Badge', icon: '\u2605' },
   sos: { label: 'SOS Alert', icon: '\u26A0' },
   system: { label: 'System', icon: '\u2139' },
+  'environmental-alert': { label: 'Climate Alert', icon: '🌡️' },
 };
 
 const MINUTE_MS = 60 * 1000;

@@ -4,7 +4,8 @@ export type NotificationType =
   | 'report'
   | 'badge'
   | 'sos'
-  | 'system';
+  | 'system'
+  | 'environmental-alert';
 
 export interface INotification extends Document {
   user: Types.ObjectId;
@@ -17,6 +18,8 @@ export interface INotification extends Document {
 
   isRead: boolean;
 
+  metadata?: Record<string, unknown> | undefined;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +29,7 @@ const NOTIFICATION_TYPES: NotificationType[] = [
   'badge',
   'sos',
   'system',
+  'environmental-alert',
 ];
 
 const notificationSchema = new Schema<INotification>(
@@ -62,6 +66,10 @@ const notificationSchema = new Schema<INotification>(
     isRead: {
       type: Boolean,
       default: false,
+    },
+
+    metadata: {
+      type: Schema.Types.Mixed,
     },
   },
   {

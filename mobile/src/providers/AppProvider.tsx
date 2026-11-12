@@ -1,6 +1,7 @@
 import React from 'react';
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
+import { CityProvider } from '../context/CityContext';
 
 interface AppProviderProps {
   children: React.ReactNode;
@@ -9,7 +10,9 @@ interface AppProviderProps {
 export default function AppProvider({ children }: AppProviderProps) {
   return (
     <ThemeProvider>
-      <AuthProvider>{children}</AuthProvider>
+      <CityProvider>
+        <AuthProvider>{children}</AuthProvider>
+      </CityProvider>
     </ThemeProvider>
   );
 }

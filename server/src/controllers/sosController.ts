@@ -108,7 +108,7 @@ const sos = await SOS.create({
 
 const populatedSOS = await sos.populate(
   'reportedBy',
-  'name email',
+  'fullName email phone',
 );
 
 res.status(201).json({
@@ -132,7 +132,7 @@ export async function getAllSOS(
    const sosList = await SOS.find({
   status: 'active',
 })
-  .populate('reportedBy', 'name email')
+  .populate('reportedBy', 'fullName email phone')
   .sort({ createdAt: -1 });
 
 res.status(200).json({
@@ -152,12 +152,14 @@ export async function getNearbySOS(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const latitude = Number(req.query.latitude);
-    const longitude = Number(req.query.longitude);
+    const latitude = Number(req.query.latitude ?? req.query.lat);
+    const longitude = Number(req.query.longitude ?? req.query.lng);
 
     const maxDistance = req.query.maxDistance
       ? Number(req.query.maxDistance)
-      : 5000;
+      : req.query.distance
+        ? Number(req.query.distance)
+        : 5000;
 
     if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
       res.status(400).json({
