@@ -41,3 +41,5 @@ All technical, architecture, security, deployment, testing, and Git audit docume
 - [GIT_AUDIT_REPORT.md](git/GIT_AUDIT_REPORT.md)
 - [GIT_SECURITY_AUDIT.md](git/GIT_SECURITY_AUDIT.md)
 - [GIT_REPAIR_REPORT.md](git/GIT_REPAIR_REPORT.md)
+- [GIT_WORKTREE_RECONCILIATION_AUDIT.md](git/GIT_WORKTREE_RECONCILIATION_AUDIT.md)
+- [CI_AND_README_REPAIR_REPORT.md](git/CI_AND_README_REPAIR_REPORT.md)
