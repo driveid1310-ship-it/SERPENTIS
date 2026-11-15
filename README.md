@@ -1,4 +1,4 @@
-﻿# SERPENTIS â€” Smart City & Climate Intelligence Platform
+# SERPENTIS — Smart City & Climate Intelligence Platform
 
 [![SERPENTIS CI](https://github.com/driveid1310-ship-it/SERPENTIS/actions/workflows/ci.yml/badge.svg)](https://github.com/driveid1310-ship-it/SERPENTIS/actions/workflows/ci.yml)
 [![Node.js Version](https://img.shields.io/badge/Node.js-%3E%3D22.11.0-brightgreen.svg)](https://nodejs.org/)
@@ -73,7 +73,7 @@ Rapid urbanisation across Indian tier-2 and tier-3 municipal corporations has le
 ## 3. Project Objectives
 
 - **Unified Civic Grievance Pipeline:** Enable citizens to capture, geotag, upload photos, upvote, and track municipal complaints from submission to resolution.
-- **Scientific Environmental Truthfulness:** Implement the official Indian Central Pollution Control Board (CPCB) National Air Quality Index algorithm with strict provenance labelingâ€”explicitly separating official regulatory stations from satellite-modeled approximations.
+- **Scientific Environmental Truthfulness:** Implement the official Indian Central Pollution Control Board (CPCB) National Air Quality Index algorithm with strict provenance labeling—explicitly separating official regulatory stations from satellite-modeled approximations.
 - **Community Resilience:** Empower local neighborhood groups with real-time chat, civic leaderboards, and participatory environmental monitoring.
 - **Emergency Preparedness:** Provide immediate hardware-linked emergency dialers and real-time SOS broadcast capabilities with GPS coordinates.
 - **Extensible Urban Scaling:** Architect a hierarchical urban data model beginning with an initial municipal pilot in **Badlapur, Maharashtra**, designed for seamless expansion across the Mumbai Metropolitan Region and Pan-India.
@@ -244,27 +244,27 @@ The mobile application is structured around a central Native Stack and Bottom Ta
 
 ```text
 mobile/src/
-â”œâ”€â”€ components/          # Reusable UI components (Buttons, Inputs, Cards, Headers, Modals)
-â”œâ”€â”€ config/              # Runtime environment resolution (env.ts)
-â”œâ”€â”€ context/             # Global Context Providers (AuthContext, ThemeContext, CityContext)
-â”œâ”€â”€ hooks/               # Custom React hooks (useLocation, useReports, usePlaces, useHeritage)
-â”œâ”€â”€ navigation/          # AppNavigator.tsx (Native Stack Navigator & Bottom Tabs)
-â”œâ”€â”€ screens/             # 32 Screen Components:
-â”‚   â”œâ”€â”€ Auth:            SplashScreen, LoginScreen, SignupScreen, ForgotPasswordScreen,
-â”‚   â”‚                    OtpVerificationScreen, ResetPasswordScreen, PasswordResetSuccessScreen
-â”‚   â”œâ”€â”€ Civic:           HomeScreen, ReportIssueScreen, ReportDetailsScreen,
-â”‚   â”‚                    PlacesScreen, HeritageScreen
-â”‚   â”œâ”€â”€ Emergency:       SosScreen
-â”‚   â”œâ”€â”€ Community:       CommunityScreen, CreateGroupScreen, GroupDetailsScreen,
-â”‚   â”‚                    GroupChatScreen, LeaderboardScreen, ContributionHistoryScreen, BadgesScreen
-â”‚   â”œâ”€â”€ Environmental:   WeatherScreen, AirQualityScreen, EnvironmentalMonitoringScreen,
-â”‚   â”‚                    EnvironmentalAlertsScreen, EnvironmentalAnalyticsScreen,
-â”‚   â”‚                    CityAssistantScreen, CityIntelligenceScreen, CitySelectorScreen
-â”‚   â””â”€â”€ System:          MapScreen, DashboardScreen, ThemeScreen, DesignShowcaseScreen,
-â”‚                        EditProfileScreen, PrivacySecurityScreen, HelpSupportScreen, NotificationsScreen
-â”œâ”€â”€ services/            # Client API services (authService, reportService, placeService, socket.ts)
-â”œâ”€â”€ theme/               # Design token schemas and multi-theme definitions
-â””â”€â”€ types/               # TypeScript interfaces for all business domains
+├── components/          # Reusable UI components (Buttons, Inputs, Cards, Headers, Modals)
+├── config/              # Runtime environment resolution (env.ts)
+├── context/             # Global Context Providers (AuthContext, ThemeContext, CityContext)
+├── hooks/               # Custom React hooks (useLocation, useReports, usePlaces, useHeritage)
+├── navigation/          # AppNavigator.tsx (Native Stack Navigator & Bottom Tabs)
+├── screens/             # 32 Screen Components:
+│   ├── Auth:            SplashScreen, LoginScreen, SignupScreen, ForgotPasswordScreen,
+│   │                    OtpVerificationScreen, ResetPasswordScreen, PasswordResetSuccessScreen
+│   ├── Civic:           HomeScreen, ReportIssueScreen, ReportDetailsScreen,
+│   │                    PlacesScreen, HeritageScreen
+│   ├── Emergency:       SosScreen
+│   ├── Community:       CommunityScreen, CreateGroupScreen, GroupDetailsScreen,
+│   │                    GroupChatScreen, LeaderboardScreen, ContributionHistoryScreen, BadgesScreen
+│   ├── Environmental:   WeatherScreen, AirQualityScreen, EnvironmentalMonitoringScreen,
+│   │                    EnvironmentalAlertsScreen, EnvironmentalAnalyticsScreen,
+│   │                    CityAssistantScreen, CityIntelligenceScreen, CitySelectorScreen
+│   └── System:          MapScreen, DashboardScreen, ThemeScreen, DesignShowcaseScreen,
+│                        EditProfileScreen, PrivacySecurityScreen, HelpSupportScreen, NotificationsScreen
+├── services/            # Client API services (authService, reportService, placeService, socket.ts)
+├── theme/               # Design token schemas and multi-theme definitions
+└── types/               # TypeScript interfaces for all business domains
 ```
 
 ---
@@ -275,26 +275,26 @@ The backend operates as an ES Module TypeScript application:
 
 ```text
 server/src/
-â”œâ”€â”€ config/              # Database connection, Cloudinary configuration, Environment validation
-â”œâ”€â”€ controllers/         # HTTP request controllers (auth, report, sos, place, environmental, group)
-â”œâ”€â”€ middleware/          # Security headers, CORS origin validator, errorMiddleware, rateLimitMiddleware
-â”œâ”€â”€ models/              # Mongoose schemas with 2dsphere geospatial indexing and timestamps
-â”œâ”€â”€ routes/              # Express 5 route definitions (/api/auth, /api/reports, /api/environment, etc.)
-â”œâ”€â”€ scripts/             # Database verification and OpenStreetMap seeding utilities
-â”œâ”€â”€ services/            # Business logic and scientific computational engines:
-â”‚   â”œâ”€â”€ ai/              # CityIntelligenceAIService (Rule-based deterministic + generative adapters)
-â”‚   â”œâ”€â”€ air-quality/     # CpcbAqiCalculator, OpenMeteoAirQualityProvider, CpcbDataGovProvider
-â”‚   â”œâ”€â”€ analytics/       # ClimateAnalyticsService (Environmental trend aggregation)
-â”‚   â”œâ”€â”€ data-providers/  # Meteorological providers and shared interfaces
-â”‚   â”œâ”€â”€ environmental/   # EnvironmentalAlertService, EnvironmentalCacheService, MonitoringService
-â”‚   â”œâ”€â”€ intelligence/    # CityIntelligenceScoreService (Composite city sustainability metrics)
-â”‚   â”œâ”€â”€ location/        # IndiaLocationService (Hierarchical city/zone registry)
-â”‚   â”œâ”€â”€ smartcity/       # SmartCityCapabilitiesService (Educational carbon footprint)
-â”‚   â””â”€â”€ weather/         # WeatherService (Calculations for Heat Index, Dew Point, VPD)
-â”œâ”€â”€ utils/               # JWT helper functions, badge definitions, regex sanitization
-â”œâ”€â”€ app.ts               # Express application initialization and middleware binding
-â”œâ”€â”€ server.ts            # HTTP server startup and database connection lifecycle
-â””â”€â”€ socket.ts            # Socket.IO connection handling and room-based event dispatching
+├── config/              # Database connection, Cloudinary configuration, Environment validation
+├── controllers/         # HTTP request controllers (auth, report, sos, place, environmental, group)
+├── middleware/          # Security headers, CORS origin validator, errorMiddleware, rateLimitMiddleware
+├── models/              # Mongoose schemas with 2dsphere geospatial indexing and timestamps
+├── routes/              # Express 5 route definitions (/api/auth, /api/reports, /api/environment, etc.)
+├── scripts/             # Database verification and OpenStreetMap seeding utilities
+├── services/            # Business logic and scientific computational engines:
+│   ├── ai/              # CityIntelligenceAIService (Rule-based deterministic + generative adapters)
+│   ├── air-quality/     # CpcbAqiCalculator, OpenMeteoAirQualityProvider, CpcbDataGovProvider
+│   ├── analytics/       # ClimateAnalyticsService (Environmental trend aggregation)
+│   ├── data-providers/  # Meteorological providers and shared interfaces
+│   ├── environmental/   # EnvironmentalAlertService, EnvironmentalCacheService, MonitoringService
+│   ├── intelligence/    # CityIntelligenceScoreService (Composite city sustainability metrics)
+│   ├── location/        # IndiaLocationService (Hierarchical city/zone registry)
+│   ├── smartcity/       # SmartCityCapabilitiesService (Educational carbon footprint)
+│   └── weather/         # WeatherService (Calculations for Heat Index, Dew Point, VPD)
+├── utils/               # JWT helper functions, badge definitions, regex sanitization
+├── app.ts               # Express application initialization and middleware binding
+├── server.ts            # HTTP server startup and database connection lifecycle
+└── socket.ts            # Socket.IO connection handling and room-based event dispatching
 ```
 
 ---
@@ -306,7 +306,7 @@ SERPENTIS utilizes MongoDB with Mongoose schemas incorporating 2dsphere geospati
 - **`User`:** Citizen credentials, role (`citizen`, `moderator`, `admin`), karma points, awarded civic badges, and preferred city.
 - **`Report`:** Civic and environmental complaints containing title, category, severity, status, coordinates (`Point`), image URLs, upvotes, and duplicate references.
 - **`Place` / `PublicService`:** Verified urban amenities (hospitals, police, fire, public offices) with `2dsphere` location indexing and category tagging.
-- **`PlaceReview` & `PlaceFavorite`:** Community ratings (1â€“5 stars), written reviews, and user favorite bookmarks.
+- **`PlaceReview` & `PlaceFavorite`:** Community ratings (1–5 stars), written reviews, and user favorite bookmarks.
 - **`SOS`:** Emergency alerts recording calling user, timestamp, coordinates, emergency type, and resolution status.
 - **`Group`, `GroupMember`, `GroupMessage`:** Community organizing groups, membership rosters, and message history.
 - **`WeatherObservation` & `AirQualityObservation`:** Historical and real-time environmental metrics indexed by location and timestamp.
@@ -319,25 +319,25 @@ SERPENTIS utilizes MongoDB with Mongoose schemas incorporating 2dsphere geospati
 
 ```text
 SERPENTIS/
-â”œâ”€â”€ .github/
-â”‚   â””â”€â”€ workflows/
-â”‚       â””â”€â”€ ci.yml               # Automated GitHub Actions CI workflow
-â”œâ”€â”€ .editorconfig                # Universal IDE formatting conventions
-â”œâ”€â”€ .gitattributes               # Line-ending normalisation and binary path specifications
-â”œâ”€â”€ .gitignore                   # Exclusions for dependencies, keystores, Android SDK, and local caches
-â”œâ”€â”€ CHANGELOG.md                 # Detailed milestone and release history
-â”œâ”€â”€ CONTRIBUTING.md              # Engineering, branching, testing, and commit conventions
-â”œâ”€â”€ README.md                    # Primary repository documentation
-â”œâ”€â”€ docs/                        # Categorized technical documentation:
-â”‚   â”œâ”€â”€ architecture/            # System, API, database, AQI, weather, and AI specifications
-â”‚   â”œâ”€â”€ deployment/              # Production deployment and Android release guides
-â”‚   â”œâ”€â”€ development/             # Installation, local configuration, and known issues
-â”‚   â”œâ”€â”€ git/                     # Git audit, repair, worktree reconciliation, and CI repair reports
-â”‚   â”œâ”€â”€ security/                # Security architecture and vulnerability audit reports
-â”‚   â””â”€â”€ testing/                 # Test strategies, validation reports, and release hardening logs
-â”œâ”€â”€ documentation/               # Project report assets, screenshots, and PlantUML diagrams
-â”œâ”€â”€ mobile/                      # React Native 0.86 Android client application
-â””â”€â”€ server/                      # Node.js 22 + Express 5 + MongoDB backend service
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # Automated GitHub Actions CI workflow
+├── .editorconfig                # Universal IDE formatting conventions
+├── .gitattributes               # Line-ending normalisation and binary path specifications
+├── .gitignore                   # Exclusions for dependencies, keystores, Android SDK, and local caches
+├── CHANGELOG.md                 # Detailed milestone and release history
+├── CONTRIBUTING.md              # Engineering, branching, testing, and commit conventions
+├── README.md                    # Primary repository documentation
+├── docs/                        # Categorized technical documentation:
+│   ├── architecture/            # System, API, database, AQI, weather, and AI specifications
+│   ├── deployment/              # Production deployment and Android release guides
+│   ├── development/             # Installation, local configuration, and known issues
+│   ├── git/                     # Git audit, repair, worktree reconciliation, and CI repair reports
+│   ├── security/                # Security architecture and vulnerability audit reports
+│   └── testing/                 # Test strategies, validation reports, and release hardening logs
+├── documentation/               # Project report assets, screenshots, and PlantUML diagrams
+├── mobile/                      # React Native 0.86 Android client application
+└── server/                      # Node.js 22 + Express 5 + MongoDB backend service
 ```
 
 ---
@@ -706,9 +706,9 @@ See [Android Release Guide](docs/deployment/ANDROID_RELEASE_GUIDE.md) for comple
 
 ## 30. Development Roadmap
 
-- [x] **Milestones 1â€“5 (Foundations):** Initial mobile app, Express server, JWT auth, MongoDB schemas.
-- [x] **Milestones 6â€“10 (Civic Expansion):** GeoJSON 2dsphere places, community groups, heritage reviews, SOS alerts.
-- [x] **Milestones 11â€“14 (Climate & Smart City):** CPCB NAQI calculation engine, 10-layer MapLibre GIS, atmospheric indices, alert clustering.
+- [x] **Milestones 1–5 (Foundations):** Initial mobile app, Express server, JWT auth, MongoDB schemas.
+- [x] **Milestones 6–10 (Civic Expansion):** GeoJSON 2dsphere places, community groups, heritage reviews, SOS alerts.
+- [x] **Milestones 11–14 (Climate & Smart City):** CPCB NAQI calculation engine, 10-layer MapLibre GIS, atmospheric indices, alert clustering.
 - [x] **Phase 2 Hardening:** Android RC1 readiness, security auditing, CI automation, and Git hygiene hardening.
 - [ ] **Milestone 15 (Municipal Dashboard):** Web-based administrative console for municipal corporation staff.
 - [ ] **Milestone 16 (Full Offline Maps):** Packaged MBTiles vector tile sets for offline emergency operations.

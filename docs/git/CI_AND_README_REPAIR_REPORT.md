@@ -1,11 +1,11 @@
-﻿# SERPENTIS â€” Backend CI Repair & Complete README Audit Report
+# SERPENTIS — Backend CI Repair & Complete README Audit Report
 
 **Report Timestamp:** 2026-11-15T20:10:00+05:30
 **Project Path:** `C:\projects\SERPENTIS`
 **Working Branch:** `serpentis-autonomous-development`
 **Baseline Commit:** `63dc4114fdf26400a8c8c66453018802628ed36f` (`63dc411`)
 **Remotes:** `origin` -> `https://github.com/driveid1310-ship-it/SERPENTIS.git`
-**Priority:** HIGH â€” Backend CI Repair & Technical README Re-architecture
+**Priority:** HIGH — Backend CI Repair & Technical README Re-architecture
 
 ---
 

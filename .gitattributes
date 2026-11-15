@@ -1,9 +1,13 @@
 # Auto detect text files and perform LF normalization conservatively
 * text=auto
+.gitattributes text eol=lf
 
 # Shell & Gradle Unix wrappers must stay LF
 *.sh text eol=lf
 mobile/android/gradlew text eol=lf
+
+# Markdown documentation files must stay LF
+*.md text eol=lf
 
 # Windows batch scripts must stay CRLF
 *.bat text eol=crlf
