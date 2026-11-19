@@ -8,3 +8,18 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# SERPENTIS native bridge
+-keep class com.serpentis.app.SerpentisConfigModule { *; }
+-keep class com.serpentis.app.SerpentisConfigPackage { *; }
+
+# MapLibre & OkHttp
+-dontwarn org.maplibre.**
+-keep class org.maplibre.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# Keychain / Reanimated / Worklets
+-keep class com.oblador.keychain.** { *; }
+-keep class com.swmansion.reanimated.** { *; }
+-keep class com.swmansion.worklets.** { *; }

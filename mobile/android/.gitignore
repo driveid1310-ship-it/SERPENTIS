@@ -1,0 +1,13 @@
+# Release signing secrets (never commit keystores or passwords)
+keystore.properties
+*.keystore
+*.jks
+!app/debug.keystore
+google-services.json
+
+# Kotlin/Gradle build caches
+.kotlin/
+.gradle/
+build/
+app/build/
+app/.cxx/

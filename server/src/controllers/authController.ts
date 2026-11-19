@@ -122,10 +122,13 @@ function sanitizeUser(user: IUser) {
     id: user._id.toString(),
     fullName: user.fullName,
     email: user.email,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
+    role: user.role || 'citizen',
+    phone: user.phone || '',
+    badges: user.badges || [],
     trustScore: user.trustScore,
     profilePicture: user.profilePicture,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
   };
 }
 
@@ -377,7 +380,7 @@ export async function updateCurrentUser(
     const user = await User.findByIdAndUpdate(
       req.userId,
       { $set: updates },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     );
 
     if (!user) {

@@ -49,6 +49,8 @@ const UserSchema = new Schema<IUser>(
 
     phone: {
       type: String,
+      trim: true,
+      maxlength: 15,
       default: "",
     },
 

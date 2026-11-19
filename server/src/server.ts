@@ -1,11 +1,13 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import { assertValidServerEnvironment } from "./config/envValidation.js";
 import app from "./app.js";
 import connectDB from "./config/database.js";
 import http from 'http';
 import { setupSocket } from './socket.js';
 
+assertValidServerEnvironment();
 await connectDB();
 
 const PORT = process.env.PORT || 5000;

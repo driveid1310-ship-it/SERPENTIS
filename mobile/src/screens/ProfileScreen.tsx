@@ -76,6 +76,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const [pendingNoticeLabel, setPendingNoticeLabel] = useState<string | null>(
     null,
   );
+  const [avatarError, setAvatarError] = useState(false);
 
   const fullName = user?.fullName ?? 'Citizen';
   const email = user?.email ?? 'No email on file';
@@ -147,8 +148,12 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
       <View style={styles.section}>
         <AppCard elevation="md" style={styles.identityCard}>
           <View style={styles.avatarCircle}>
-            {user?.profilePicture ? (
-              <Image source={{ uri: user.profilePicture }} style={styles.avatarImage} />
+            {user?.profilePicture && !avatarError ? (
+              <Image
+                source={{ uri: user.profilePicture }}
+                style={styles.avatarImage}
+                onError={() => setAvatarError(true)}
+              />
             ) : (
               <Text style={styles.avatarInitial}>{initial}</Text>
             )}

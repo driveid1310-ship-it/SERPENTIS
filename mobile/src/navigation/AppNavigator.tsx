@@ -20,7 +20,6 @@ import PasswordResetSuccessScreen from '../screens/PasswordResetSuccessScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import PrivacySecurityScreen from '../screens/PrivacySecurityScreen';
 import HelpSupportScreen from '../screens/HelpSupportScreen';
-import MapTestScreen from '../screens/MapTestScreen';
 import MapScreen from '../screens/MapScreen';
 import ReportDetailsScreen from '../screens/ReportDetailsScreen';
 import CommunityScreen from '../screens/CommunityScreen';
@@ -33,6 +32,14 @@ import ContributionHistoryScreen from '../screens/ContributionHistoryScreen';
 import BadgesScreen from '../screens/BadgesScreen';
 import ThemeScreen from '../screens/ThemeScreen';
 import DesignShowcaseScreen from '../screens/DesignShowcaseScreen';
+import WeatherScreen from '../screens/WeatherScreen';
+import AirQualityScreen from '../screens/AirQualityScreen';
+import EnvironmentalMonitoringScreen from '../screens/EnvironmentalMonitoringScreen';
+import EnvironmentalAlertsScreen from '../screens/EnvironmentalAlertsScreen';
+import EnvironmentalAnalyticsScreen from '../screens/EnvironmentalAnalyticsScreen';
+import CityAssistantScreen from '../screens/CityAssistantScreen';
+import CityIntelligenceScreen from '../screens/CityIntelligenceScreen';
+import CitySelectorScreen from '../screens/CitySelectorScreen';
 
 import { useTheme } from '../context/ThemeContext';
 import { Text, Platform } from 'react-native';
@@ -79,7 +86,6 @@ export type RootStackParamList = {
   EditProfile: undefined;
   PrivacySecurity: undefined;
   HelpSupport: undefined;
-  MapTest: undefined;
   ReportDetails: { reportId: string };
   Community: undefined;
   CreateGroup: undefined;
@@ -91,10 +97,39 @@ export type RootStackParamList = {
   Badges: undefined;
   Theme: undefined;
   DesignShowcase: undefined;
+  Weather: undefined;
+  AirQuality: undefined;
+  EnvironmentalMonitoring: undefined;
+  EnvironmentalAlerts: undefined;
+  EnvironmentalAnalytics: undefined;
+  CityAssistant: undefined;
+  CityIntelligence: undefined;
+  CitySelector: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
+
+const renderHomeIcon = ({ color }: { color: string }) => (
+  <Text style={[tabIconStyles.icon, { color }]}>⌂</Text>
+);
+const renderMapIcon = ({ color }: { color: string }) => (
+  <Text style={[tabIconStyles.icon, { color }]}>📍</Text>
+);
+const renderReportIcon = ({ color }: { color: string }) => (
+  <Text style={[tabIconStyles.plusIcon, { color }]}>+</Text>
+);
+const renderCommunityIcon = ({ color }: { color: string }) => (
+  <Text style={[tabIconStyles.icon, { color }]}>👥</Text>
+);
+const renderProfileIcon = ({ color }: { color: string }) => (
+  <Text style={[tabIconStyles.icon, { color }]}>👤</Text>
+);
+
+const tabIconStyles = {
+  icon: { fontSize: 18 },
+  plusIcon: { fontSize: 24, fontWeight: 'bold' as const, marginBottom: -2 },
+};
 
 function MainTabs() {
   const { theme } = useTheme();
@@ -118,45 +153,45 @@ function MainTabs() {
         }
       }}
     >
-      <Tab.Screen 
-        name="HomeTab" 
-        component={HomeScreen as any} 
-        options={{ 
+      <Tab.Screen
+        name="HomeTab"
+        component={HomeScreen as any}
+        options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>⌂</Text>
-        }} 
+          tabBarIcon: renderHomeIcon,
+        }}
       />
-      <Tab.Screen 
-        name="Map" 
-        component={MapScreen as any} 
-        options={{ 
+      <Tab.Screen
+        name="Map"
+        component={MapScreen as any}
+        options={{
           tabBarLabel: 'Map',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>📍</Text>
-        }} 
+          tabBarIcon: renderMapIcon,
+        }}
       />
-      <Tab.Screen 
-        name="ReportIssue" 
-        component={ReportIssueScreen as any} 
-        options={{ 
+      <Tab.Screen
+        name="ReportIssue"
+        component={ReportIssueScreen as any}
+        options={{
           tabBarLabel: 'Report',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24, fontWeight: 'bold', marginBottom: -2 }}>+</Text>
-        }} 
+          tabBarIcon: renderReportIcon,
+        }}
       />
-      <Tab.Screen 
-        name="Community" 
-        component={CommunityScreen as any} 
-        options={{ 
+      <Tab.Screen
+        name="Community"
+        component={CommunityScreen as any}
+        options={{
           tabBarLabel: 'Community',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>👥</Text>
-        }} 
+          tabBarIcon: renderCommunityIcon,
+        }}
       />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen as any} 
-        options={{ 
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen as any}
+        options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>👤</Text>
-        }} 
+          tabBarIcon: renderProfileIcon,
+        }}
       />
     </Tab.Navigator>
   );
@@ -170,7 +205,6 @@ export default function AppNavigator() {
         headerShown: false,
       }}
     >
-      <Stack.Screen name="MapTest" component={MapTestScreen} />
       <Stack.Screen name="ReportDetails" component={ReportDetailsScreen} />
       <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
       <Stack.Screen name="GroupDetails" component={GroupDetailsScreen} />
@@ -181,6 +215,14 @@ export default function AppNavigator() {
       <Stack.Screen name="Badges" component={BadgesScreen} />
       <Stack.Screen name="Theme" component={ThemeScreen} />
       <Stack.Screen name="DesignShowcase" component={DesignShowcaseScreen} />
+      <Stack.Screen name="Weather" component={WeatherScreen} />
+      <Stack.Screen name="AirQuality" component={AirQualityScreen} />
+      <Stack.Screen name="EnvironmentalMonitoring" component={EnvironmentalMonitoringScreen} />
+      <Stack.Screen name="EnvironmentalAlerts" component={EnvironmentalAlertsScreen} />
+      <Stack.Screen name="EnvironmentalAnalytics" component={EnvironmentalAnalyticsScreen} />
+      <Stack.Screen name="CityAssistant" component={CityAssistantScreen} />
+      <Stack.Screen name="CityIntelligence" component={CityIntelligenceScreen} />
+      <Stack.Screen name="CitySelector" component={CitySelectorScreen} />
       
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />

@@ -12,7 +12,8 @@ export async function getLeaderboard(
   try {
     const users = await User.find()
       .select('fullName reputationPoints trustScore resolvedReports badges profilePicture')
-      .sort({ reputationPoints: -1, trustScore: -1, resolvedReports: -1 });
+      .sort({ reputationPoints: -1, trustScore: -1, resolvedReports: -1 })
+      .limit(100);
 
     const leaderboard = users.map((user, index) => ({
       rank: index + 1,

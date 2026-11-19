@@ -1,4 +1,9 @@
-export type NotificationType = 'report' | 'badge' | 'sos' | 'system';
+export type NotificationType =
+  | 'report'
+  | 'badge'
+  | 'sos'
+  | 'system'
+  | 'environmental-alert';
 
 export interface Notification {
   _id: string;
@@ -6,6 +11,7 @@ export interface Notification {
   message: string;
   type: NotificationType;
   isRead: boolean;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }

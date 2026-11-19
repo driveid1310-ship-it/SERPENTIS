@@ -1,11 +1,34 @@
 import type { Request, Response, NextFunction } from 'express';
 import { Types } from 'mongoose';
 
-import SOS from '../models/SOS.js';
+import SOS, { SOS_TYPES } from '../models/SOS.js';
 import type { SOSType } from '../models/SOS.js';
+import User from '../models/User.js';
 
 interface AuthenticatedRequest extends Request {
   userId?: string;
+}
+
+async function isStaffViewer(userId?: string): Promise<boolean> {
+  if (!userId) return false;
+  const user = await User.findById(userId).select('role').lean();
+  return user?.role === 'admin' || user?.role === 'moderator';
+}
+
+function sanitizeSosForViewer(doc: any, viewerId?: string, staff = false): any {
+  const obj = typeof doc?.toObject === 'function' ? doc.toObject() : { ...doc };
+  const reporter = obj.reportedBy;
+  if (reporter && typeof reporter === 'object') {
+    const reporterId = reporter._id?.toString();
+    const isOwner = Boolean(viewerId && reporterId && viewerId === reporterId);
+    if (!staff && !isOwner) {
+      obj.reportedBy = {
+        _id: reporter._id,
+        fullName: reporter.fullName || 'Citizen',
+      };
+    }
+  }
+  return obj;
 }
 
 interface GeoJSONPointInput {
@@ -75,10 +98,10 @@ if (!req.userId) {
 
 const { emergencyType, message, location } = req.body;
 
-if (!emergencyType) {
+if (!emergencyType || !SOS_TYPES.includes(emergencyType)) {
   res.status(400).json({
     success: false,
-    message: 'Emergency type is required.',
+    message: 'A valid emergency type is required.',
   });
   return;
 }
@@ -108,7 +131,7 @@ const sos = await SOS.create({
 
 const populatedSOS = await sos.populate(
   'reportedBy',
-  'name email',
+  'fullName email phone',
 );
 
 res.status(201).json({
@@ -124,40 +147,45 @@ res.status(201).json({
 }
 
 export async function getAllSOS(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-   const sosList = await SOS.find({
-  status: 'active',
-})
-  .populate('reportedBy', 'name email')
-  .sort({ createdAt: -1 });
+    const staff = await isStaffViewer(req.userId);
+    const sosList = await SOS.find({
+      status: 'active',
+    })
+      .populate('reportedBy', 'fullName email phone')
+      .sort({ createdAt: -1 });
 
-res.status(200).json({
-  success: true,
-  data: {
-    sos: sosList,
-    count: sosList.length,
-  },
-});
+    const sanitized = sosList.map((doc) => sanitizeSosForViewer(doc, req.userId, staff));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        sos: sanitized,
+        count: sanitized.length,
+      },
+    });
   } catch (error) {
     next(error);
   }
 }
 export async function getNearbySOS(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    const latitude = Number(req.query.latitude);
-    const longitude = Number(req.query.longitude);
+    const latitude = Number(req.query.latitude ?? req.query.lat);
+    const longitude = Number(req.query.longitude ?? req.query.lng);
 
     const maxDistance = req.query.maxDistance
       ? Number(req.query.maxDistance)
-      : 5000;
+      : req.query.distance
+        ? Number(req.query.distance)
+        : 5000;
 
     if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
       res.status(400).json({
@@ -167,6 +195,7 @@ export async function getNearbySOS(
       return;
     }
 
+    const staff = await isStaffViewer(req.userId);
     const sosAlerts = await SOS.find({
       status: 'active',
       location: {
@@ -179,14 +208,16 @@ export async function getNearbySOS(
         },
       },
     })
-      .populate('reportedBy', 'fullName email')
+      .populate('reportedBy', 'fullName email phone')
       .sort({ createdAt: -1 });
+
+    const sanitized = sosAlerts.map((doc) => sanitizeSosForViewer(doc, req.userId, staff));
 
     res.status(200).json({
       success: true,
       data: {
-        sos: sosAlerts,
-        count: sosAlerts.length,
+        sos: sanitized,
+        count: sanitized.length,
       },
     });
   } catch (error) {

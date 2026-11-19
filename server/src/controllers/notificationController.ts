@@ -75,7 +75,7 @@ export async function markNotificationRead(
         isRead: true,
       },
       {
-        new: true,
+        returnDocument: 'after',
       },
     );
 
