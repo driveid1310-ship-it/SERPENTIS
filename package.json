@@ -1,0 +1,24 @@
+{
+  "name": "serpentis-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SERPENTIS — Smart City & Climate Intelligence Platform",
+  "scripts": {
+    "test:server": "npm --prefix server test",
+    "test:mobile": "npm --prefix mobile test -- --watchAll=false",
+    "test": "npm run test:server && npm run test:mobile",
+    "build:server": "npm --prefix server run build",
+    "build": "npm run build:server",
+    "lint:mobile": "npm --prefix mobile run lint",
+    "lint": "npm run lint:mobile",
+    "typecheck:server": "npm --prefix server run typecheck",
+    "typecheck:mobile": "npm --prefix mobile run typecheck",
+    "typecheck": "npm run typecheck:server && npm run typecheck:mobile",
+    "check:all": "npm run build:server && npm run test:server && npm run typecheck:mobile && npm run lint:mobile && npm run test:mobile",
+    "start:server": "npm --prefix server run dev",
+    "start:mobile": "npm --prefix mobile start"
+  },
+  "engines": {
+    "node": ">= 22.11.0"
+  }
+}

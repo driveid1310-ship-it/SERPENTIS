@@ -1,6 +1,6 @@
 # SERPENTIS Documentation Index
 
-All technical, architecture, security, deployment, testing, and Git audit documentation is organized below:
+All technical, architecture, security, deployment, testing, project reconstruction, and Git audit documentation is organized below:
 
 ## 1. Architecture & Platform Modules (`docs/architecture/`)
 - [SYSTEM_ARCHITECTURE.md](architecture/SYSTEM_ARCHITECTURE.md)
@@ -43,3 +43,13 @@ All technical, architecture, security, deployment, testing, and Git audit docume
 - [GIT_REPAIR_REPORT.md](git/GIT_REPAIR_REPORT.md)
 - [GIT_WORKTREE_RECONCILIATION_AUDIT.md](git/GIT_WORKTREE_RECONCILIATION_AUDIT.md)
 - [CI_AND_README_REPAIR_REPORT.md](git/CI_AND_README_REPAIR_REPORT.md)
+- [PRE_MERGE_READINESS_REPORT.md](git/PRE_MERGE_READINESS_REPORT.md)
+
+## 7. Project Engineering Reports (`docs/project/`)
+- [SERPENTIS_AUTONOMOUS_RECONSTRUCTION_REPORT.md](project/SERPENTIS_AUTONOMOUS_RECONSTRUCTION_REPORT.md)
+
+## 8. Historical Archive (`docs/archive/`)
+- [README.md](archive/README.md)
+- [FinalAuditReport.md](archive/FinalAuditReport.md)
+- [SERPENTIS_DOCUMENTATION_INVENTORY.md](archive/SERPENTIS_DOCUMENTATION_INVENTORY.md)
+- [SionDatasetReport.md](archive/SionDatasetReport.md)

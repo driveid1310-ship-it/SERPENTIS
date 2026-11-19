@@ -567,12 +567,23 @@ Detailed request/response schemas are documented in [API Documentation](docs/arc
 
 ## 21. Testing Instructions
 
+### Unified Workspace Pipeline Check
+```powershell
+cd C:\projects\SERPENTIS
+
+# Run complete verification across backend build, backend tests, mobile types, linting, and Jest:
+npm run check:all
+
+# Run all test suites across backend and mobile:
+npm test
+```
+
 ### Run Backend Unit & Integration Tests
 ```powershell
 cd C:\projects\SERPENTIS\server
 npm test
 ```
-*Executes 17 automated tests covering the CPCB NAQI algorithm, meteorological calculations, environmental cache TTL, request deduplication, authentication boundaries, and input sanitization.*
+*Executes 18 automated test suites (22 tests) covering the CPCB NAQI algorithm, meteorological calculations, environmental cache TTL, request deduplication, authentication boundaries, shared contracts, and input sanitization.*
 
 ### Run Mobile Unit Tests
 ```powershell
@@ -585,17 +596,32 @@ npm test -- --watchAll=false
 
 ## 22. TypeScript and ESLint Commands
 
-### Backend Validation
+### Root Workspace Commands
 ```powershell
-cd C:\projects\SERPENTIS\server
+cd C:\projects\SERPENTIS
+
+# Typecheck both server and mobile simultaneously
+npm run typecheck
+
+# Lint mobile source code
+npm run lint
+
+# Build backend
 npm run build
 ```
 
-### Mobile Validation
+### Backend Direct Validation
+```powershell
+cd C:\projects\SERPENTIS\server
+npm run build
+npm run typecheck
+```
+
+### Mobile Direct Validation
 ```powershell
 cd C:\projects\SERPENTIS\mobile
-npx tsc --noEmit
-npx eslint src
+npm run typecheck
+npm run lint
 ```
 
 ---
